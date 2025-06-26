@@ -8,3 +8,6 @@ This is a Next.js project bootstrapped with Create Next App.
 - `npm run build` - build for production
 - `npm run start` - start production server
 - `npm run lint` - run ESLint
+
+This project uses Tailwind CSS. Styles are compiled using the standard
+Tailwind workflow via PostCSS.
