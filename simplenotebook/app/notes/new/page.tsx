@@ -1,24 +1,21 @@
 'use client'
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useEffect } from 'react'
 
 export default function NewNotePage() {
   const [content, setContent] = useState('')
   const [message, setMessage] = useState('')
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setMessage('')
-    const res = await fetch('/api/notes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content })
-    })
-    if (res.ok) {
-      setContent('')
-      setMessage('保存しました')
-    } else {
-      setMessage('保存に失敗しました')
+  useEffect(() => {
+    const saved = window.localStorage.getItem('new-note-content')
+    if (saved) {
+      setContent(saved)
     }
+  }, [])
+
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    window.localStorage.setItem('new-note-content', content)
+    setMessage('保存しました（ローカル保存）')
   }
 
   return (
