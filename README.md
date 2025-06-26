@@ -1,2 +1,4 @@
 # simplenotebook
-simple notebook
+
+* シンプルなノートブックを作成します。
+* markdownで編集することができます。
