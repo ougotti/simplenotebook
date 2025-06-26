@@ -1,11 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useState, FormEvent } from 'react'
 
 export default function NewNotePage() {
   const [content, setContent] = useState('')
   const [message, setMessage] = useState('')
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setMessage('')
     const res = await fetch('/api/notes', {
