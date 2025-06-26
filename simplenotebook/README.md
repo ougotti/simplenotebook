@@ -13,4 +13,6 @@ This project uses Tailwind CSS. Styles are compiled using the standard
 Tailwind workflow via PostCSS.
 
 The project is configured for static export so it can be hosted on GitHub Pages.
-Run `npm run build` and deploy the contents of the `out` directory.
+Run `npm run build` and deploy the contents of the `out` directory. A
+GitHub Actions workflow (`.github/workflows/pages.yml`) is included to
+automate deployment when pushing to the `main` branch.
