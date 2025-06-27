@@ -1,12 +1,14 @@
 import Head from 'next/head'
 import { useState, FormEvent, useEffect } from 'react'
 
+const LOCAL_STORAGE_KEY = 'new-note-content';
+
 export default function Home() {
   const [content, setContent] = useState('')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    const saved = window.localStorage.getItem('new-note-content')
+    const saved = window.localStorage.getItem(LOCAL_STORAGE_KEY)
     if (saved) {
       setContent(saved)
     }
