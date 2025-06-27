@@ -2,6 +2,8 @@
 
 シンプルなノートブックを作成する Next.js プロジェクトです。Markdown で編集した内容を GitHub Pages で静的サイトとして公開できます。
 
+公開サイト: <https://ougotti.github.io/simplenotebook/>
+
 ## 利用できるスクリプト
 
 - `npm run dev` - 開発サーバーを起動
