@@ -23,7 +23,7 @@ export default function NewNotePage() {
       <h1 className="text-2xl font-bold mb-4">新規ノート</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <textarea
-          className="w-full border rounded p-2 h-40"
+          className="w-screen h-screen border rounded p-2"
           value={content}
           onChange={e => setContent(e.target.value)}
           placeholder="Markdownを書いてください"
