@@ -24,7 +24,8 @@ export default function Home() {
     <div className="max-w-xl mx-auto">
       <Head>
         <title>Simplenotebook</title>
-        <link rel="icon" href="/favicon.ico" />
+        {/* GitHub Pages の basePath (/simplenotebook) を考慮 */}
+        <link rel="icon" href="/simplenotebook/favicon.ico" />
       </Head>
       <h1 className="text-2xl font-bold mb-4">新規ノート</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
