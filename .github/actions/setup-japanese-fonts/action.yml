@@ -1,0 +1,53 @@
+name: 'Setup Japanese Fonts'
+description: 'Install Japanese fonts for proper text rendering in Copilot environment'
+author: 'SimpleNotebook Project'
+
+branding:
+  icon: 'type'
+  color: 'blue'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Japanese fonts
+      shell: bash
+      run: |
+        echo "🔤 Installing Japanese fonts for proper text rendering..."
+        sudo apt-get update
+        sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji fonts-liberation
+        
+        # Refresh font cache to ensure fonts are immediately available
+        sudo fc-cache -fv
+        
+        echo "✅ Japanese fonts installation completed"
+        
+    - name: Verify font installation
+      shell: bash
+      run: |
+        echo "🔍 Verifying Japanese font installation..."
+        
+        # Check for Noto CJK fonts
+        if fc-list | grep -qi "noto.*cjk"; then
+          echo "✅ Noto CJK fonts are available"
+        else
+          echo "❌ Noto CJK fonts not found"
+          exit 1
+        fi
+        
+        # Check for emoji fonts
+        if fc-list | grep -qi "noto.*emoji"; then
+          echo "✅ Noto emoji fonts are available"  
+        else
+          echo "❌ Noto emoji fonts not found"
+          exit 1
+        fi
+        
+        # Check for Liberation fonts
+        if fc-list | grep -qi "liberation"; then
+          echo "✅ Liberation fonts are available"
+        else
+          echo "❌ Liberation fonts not found" 
+          exit 1
+        fi
+        
+        echo "🎉 All required Japanese fonts are properly installed and available"

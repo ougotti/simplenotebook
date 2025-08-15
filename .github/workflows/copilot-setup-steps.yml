@@ -1,0 +1,23 @@
+# Workflow for setting up Japanese fonts in Copilot (GitHub Actions) environment
+# This workflow provides reusable steps for Japanese font installation
+# to ensure proper rendering of Japanese text in CI/CD environments
+
+name: Copilot Setup Steps
+
+on:
+  # This workflow can be called by other workflows
+  workflow_call:
+  
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  setup-japanese-fonts:
+    name: Setup Japanese Fonts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Japanese fonts using composite action
+        uses: ./.github/actions/setup-japanese-fonts

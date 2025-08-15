@@ -33,12 +33,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Install Japanese fonts
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji fonts-liberation
-          # Refresh font cache
-          sudo fc-cache -fv
+      - name: Setup Japanese fonts
+        uses: ./.github/actions/setup-japanese-fonts
       
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -144,12 +140,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Install Japanese fonts
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji fonts-liberation
-          # Refresh font cache
-          sudo fc-cache -fv
+      - name: Setup Japanese fonts
+        uses: ./.github/actions/setup-japanese-fonts
       
       - name: Download and verify config
         uses: actions/download-artifact@v4
