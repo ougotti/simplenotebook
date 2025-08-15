@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "preview": "npx serve out",
-    "lint": "next lint"
+    "build": "next build",
+    "start": "next start",
+    "preview": "npx serve out",
+    "lint": "next lint",
+    "verify-config": "node scripts/verify-config.js"
   },
   "dependencies": {
     "next": "^14.2.30",

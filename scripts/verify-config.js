@@ -1,0 +1,104 @@
+#!/usr/bin/env node
+
+/**
+ * Verify that config.json contains valid AWS resource URLs
+ * and no placeholder values remain
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const CONFIG_PATH = path.join(__dirname, '../public/config/config.json');
+
+function verifyConfig() {
+  console.log('🔍 Verifying config.json...');
+
+  // Check if config file exists
+  if (!fs.existsSync(CONFIG_PATH)) {
+    console.error('❌ Error: config.json not found at', CONFIG_PATH);
+    process.exit(1);
+  }
+
+  // Read and parse config
+  let config;
+  try {
+    const configContent = fs.readFileSync(CONFIG_PATH, 'utf8');
+    config = JSON.parse(configContent);
+  } catch (error) {
+    console.error('❌ Error: config.json is not valid JSON:', error.message);
+    process.exit(1);
+  }
+
+  console.log('📄 Config content:');
+  console.log(JSON.stringify(config, null, 2));
+
+  // Required fields
+  const requiredFields = [
+    'apiBaseUrl',
+    'cognitoDomain',
+    'clientId',
+    'userPoolId',
+    'identityPoolId',
+    'region',
+    'notesBucket',
+    'notesPrefix'
+  ];
+
+  // Check for missing fields
+  const missingFields = requiredFields.filter(field => !config[field]);
+  if (missingFields.length > 0) {
+    console.error('❌ Error: Missing required fields:', missingFields);
+    process.exit(1);
+  }
+
+  // Check for placeholder values
+  const placeholders = ['PLACEHOLDER', 'your-', 'your_', 'example.com'];
+  const configString = JSON.stringify(config);
+  
+  for (const placeholder of placeholders) {
+    if (configString.includes(placeholder)) {
+      console.error('❌ Error: Config contains placeholder values:', placeholder);
+      console.error('Config:', configString);
+      process.exit(1);
+    }
+  }
+
+  // Validate URL formats
+  const urlFields = ['apiBaseUrl', 'cognitoDomain'];
+  for (const field of urlFields) {
+    try {
+      new URL(config[field]);
+    } catch (error) {
+      console.error(`❌ Error: ${field} is not a valid URL:`, config[field]);
+      process.exit(1);
+    }
+  }
+
+  // Check AWS-specific formats
+  if (!config.apiBaseUrl.includes('execute-api') || !config.apiBaseUrl.includes('amazonaws.com')) {
+    console.error('❌ Error: apiBaseUrl does not look like an AWS API Gateway URL:', config.apiBaseUrl);
+    process.exit(1);
+  }
+
+  if (!config.cognitoDomain.includes('auth') || !config.cognitoDomain.includes('amazoncognito.com')) {
+    console.error('❌ Error: cognitoDomain does not look like a Cognito domain:', config.cognitoDomain);
+    process.exit(1);
+  }
+
+  if (!config.identityPoolId.includes(':')) {
+    console.error('❌ Error: identityPoolId does not look like a valid format:', config.identityPoolId);
+    process.exit(1);
+  }
+
+  console.log('✅ Config validation passed!');
+  console.log('✅ All required fields present');
+  console.log('✅ No placeholder values found');
+  console.log('✅ URLs are valid');
+  console.log('✅ AWS resource formats look correct');
+}
+
+if (require.main === module) {
+  verifyConfig();
+}
+
+module.exports = verifyConfig;

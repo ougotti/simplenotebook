@@ -27,7 +27,30 @@
 
 ## セットアップ
 
-詳細なデプロイ手順は [DEPLOYMENT.md](DEPLOYMENT.md) を参照してください。
+### 自動デプロイ (推奨)
+
+このプロジェクトは **完全自動化されたCI/CD** を使用します。mainブランチにプッシュするだけで、AWS インフラストラクチャの構築から SPA のデプロイまで自動実行されます。
+
+詳細なセットアップ手順は [DEPLOYMENT.md](DEPLOYMENT.md) を参照してください。
+
+### 開発環境
+
+```bash
+# 依存関係のインストール
+npm install
+
+# 開発サーバー起動 (http://localhost:3000/simplenotebook)
+npm run dev
+
+# 本番ビルド
+npm run build
+
+# ビルドのプレビュー (http://localhost:3000)
+npm run preview
+
+# 設定ファイルの検証
+npm run verify-config
+```
 
 ### 必要な準備
 
