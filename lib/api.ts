@@ -45,7 +45,7 @@ class ApiClient {
       await this.initialize();
     }
 
-    const url = `${this.baseUrl.replace(/\/$/, '')}${endpoint}`;
+    const url = `${this.baseUrl.replace(/\/+$/, '')}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${this.accessToken}`,
