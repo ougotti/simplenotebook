@@ -12,8 +12,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  setup-japanese-fonts:
-    name: Setup Japanese Fonts
+  copilot-setup-steps:
+    name: Copilot Setup Steps
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
