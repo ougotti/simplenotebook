@@ -94,6 +94,10 @@ npm run verify-config
 - **インフラ**: AWS CDK, CloudFormation
 - **CI/CD**: GitHub Actions, GitHub OIDC
 
+## 日本語フォントサポート
+
+このプロジェクトには日本語フォントサポートが組み込まれており、GitHub Actions環境やPlaywrightテストで日本語文字が正しく表示されます。詳細については、[docs/japanese-fonts.md](docs/japanese-fonts.md) を参照してください。
+
 ## デプロイ手順
 
 AWS サービスを使用した本格的なデプロイ手順については、[DEPLOY.md](DEPLOY.md) を参照してください。

@@ -8,6 +8,8 @@
     "start": "next start",
     "preview": "npx serve out",
     "lint": "next lint",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "verify-config": "node scripts/verify-config.js"
   },
   "dependencies": {
@@ -26,6 +28,7 @@
     "eslint-config-next": "14.2.3",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.1",
-    "typescript": "5.2.2"
+    "typescript": "5.2.2",
+    "@playwright/test": "^1.40.0"
   }
 }
