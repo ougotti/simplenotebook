@@ -1,137 +1,137 @@
 # Simplenotebook
 
-Simplenotebook is a Next.js web application for creating and editing markdown notes. It generates a static site deployed to GitHub Pages with automatic GitHub Actions workflow deployment.
+Simplenotebookは、Markdownノートを作成・編集するためのNext.jsウェブアプリケーションです。GitHub Actionsワークフローによる自動デプロイでGitHub Pagesに静的サイトを生成します。
 
-**ALWAYS reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.**
+**必ず最初にこれらの指示に従い、ここの情報と一致しない予期しない情報に遭遇した場合のみ検索やbashコマンドにフォールバックしてください。**
 
-## Working Effectively
+## 効果的な作業方法
 
-### Bootstrap and Setup
-- Install dependencies: `npm install` -- takes ~51 seconds. NEVER CANCEL. Set timeout to 90+ seconds.
-- The repository requires Node.js v20+ and npm v10+
-- No additional system dependencies or setup scripts required
+### ブートストラップとセットアップ
+- 依存関係のインストール: `npm install` -- 約51秒かかります。絶対にキャンセルしないでください。90秒以上のタイムアウトを設定してください。
+- このリポジトリはNode.js v20+およびnpm v10+が必要です
+- 追加のシステム依存関係やセットアップスクリプトは不要です
 
-### Development
-- Start development server: `npm run dev` -- starts in ~2 seconds, serves at http://localhost:3000/simplenotebook
-- **CRITICAL**: The app uses basePath `/simplenotebook` for GitHub Pages compatibility. Access the app at `http://localhost:3000/simplenotebook`, NOT `http://localhost:3000`
-- The development server supports hot reload and fast refresh
+### 開発
+- 開発サーバーの起動: `npm run dev` -- 約2秒で起動、http://localhost:3000/simplenotebookで配信
+- **重要**: このアプリはGitHub Pagesとの互換性のためbasePath `/simplenotebook`を使用します。`http://localhost:3000/simplenotebook`にアクセスしてください。`http://localhost:3000`ではありません。
+- 開発サーバーはホットリロードとファストリフレッシュをサポートします
 
-### Building and Static Export
-- Build for production: `npm run build` -- takes ~18 seconds. NEVER CANCEL. Set timeout to 60+ seconds.
-- The build generates a static site in the `out/` directory
-- Uses Next.js 14 static export with `output: 'export'` configuration
-- **NOTE**: `npm run start` does NOT work with static export configuration - use `npm run preview` instead
+### ビルドと静的エクスポート
+- 本番用ビルド: `npm run build` -- 約18秒かかります。絶対にキャンセルしないでください。60秒以上のタイムアウトを設定してください。
+- ビルドは`out/`ディレクトリに静的サイトを生成します
+- `output: 'export'`設定でNext.js 14静的エクスポートを使用します
+- **注意**: `npm run start`は静的エクスポート設定では動作しません - 代わりに`npm run preview`を使用してください
 
-### Preview Production Build
-- Preview built site: `npm run preview` -- uses `npx serve out`, serves at http://localhost:3000
-- **IMPORTANT**: Access preview at `http://localhost:3000` (NOT `/simplenotebook` like dev server)
-- The serve package will be automatically installed on first run
-- **NOTE**: You may see asset loading errors in browser console - this is expected as the build is optimized for GitHub Pages with basePath
+### 本番ビルドのプレビュー
+- ビルドサイトのプレビュー: `npm run preview` -- `npx serve out`を使用、http://localhost:3000で配信
+- **重要**: プレビューは`http://localhost:3000`にアクセスしてください（開発サーバーのような`/simplenotebook`ではありません）
+- serveパッケージは初回実行時に自動的にインストールされます
+- **注意**: ブラウザコンソールでアセット読み込みエラーが表示される場合がありますが、これはbasePathでGitHub Pages用に最適化されたビルドでは想定内です
 
-### Linting and Code Quality
-- Run linting: `npm run lint` -- takes ~2 seconds, uses ESLint with Next.js config
-- ALWAYS run `npm run lint` before committing changes - CI will fail if linting errors exist
-- No separate formatting tools configured - ESLint handles code quality
+### リンティングとコード品質
+- リンティングの実行: `npm run lint` -- 約2秒、Next.js設定でESLintを使用
+- 変更をコミットする前に必ず`npm run lint`を実行してください - リンティングエラーがあるとCIが失敗します
+- 独立したフォーマッティングツールは設定されていません - ESLintがコード品質を処理します
 
-## Validation Scenarios
+## バリデーションシナリオ
 
-### Manual Testing Requirements
-After making changes, ALWAYS test these scenarios:
+### 手動テストの要件
+変更を加えた後、必ず以下のシナリオをテストしてください:
 
-1. **Note Creation Flow**:
-   - Navigate to `http://localhost:3000/simplenotebook`
-   - Enter markdown text in the textarea (e.g., `# Test\n\n**Bold text**`)
-   - Click "保存" button
-   - Verify success message "保存しました（ローカル保存）" appears
-   - Verify content persists after page refresh (uses localStorage)
+1. **ノート作成フロー**:
+   - `http://localhost:3000/simplenotebook`にナビゲート
+   - テキストエリアにMarkdownテキストを入力（例: `# Test\n\n**Bold text**`）
+   - "保存"ボタンをクリック
+   - 成功メッセージ"保存しました（ローカル保存）"が表示されることを確認
+   - ページリフレッシュ後もコンテンツが保持されることを確認（localStorageを使用）
 
-2. **App Router Route**:
-   - Navigate to `http://localhost:3000/simplenotebook/notes/new`
-   - Verify the same note creation interface appears
+2. **App Routerルート**:
+   - `http://localhost:3000/simplenotebook/notes/new`にナビゲート
+   - 同じノート作成インターフェースが表示されることを確認
 
-3. **Build Validation**:
-   - Run `npm run build` and verify no errors
-   - Check `out/` directory contains: `index.html`, `notes/new.html`, `_next/` assets
-   - Run `npm run preview` and test both routes in production build: `/` and `/notes/new`
-   - **NOTE**: Asset loading errors in browser console are expected in preview
+3. **ビルドバリデーション**:
+   - `npm run build`を実行してエラーがないことを確認
+   - `out/`ディレクトリに`index.html`、`notes/new.html`、`_next/`アセットが含まれていることを確認
+   - `npm run preview`を実行して本番ビルドで両方のルートをテスト: `/`と`/notes/new`
+   - **注意**: プレビューでブラウザコンソールにアセット読み込みエラーが表示されるのは想定内です
 
-## Project Structure
+## プロジェクト構造
 
-### Key Directories and Files
+### 主要なディレクトリとファイル
 ```
 /home/runner/work/simplenotebook/simplenotebook/
-├── app/                      # App Router pages (Next.js 13+)
-│   ├── layout.tsx           # Root layout with HTML structure
-│   └── notes/new/page.tsx   # /notes/new route component
-├── pages/                   # Pages Router (legacy, still active)
-│   ├── _app.tsx             # App wrapper
-│   └── index.tsx            # Root route component
-├── styles/globals.css       # Global Tailwind CSS imports
-├── public/                  # Static assets (favicon, images)
-├── .github/workflows/       # GitHub Actions for deployment
-├── next.config.js           # Next.js config with static export + basePath
-├── tailwind.config.js       # Tailwind CSS configuration
-├── tsconfig.json            # TypeScript configuration
-└── package.json             # Dependencies and scripts
+├── app/                      # App Routerページ（Next.js 13+）
+│   ├── layout.tsx           # HTML構造を持つルートレイアウト
+│   └── notes/new/page.tsx   # /notes/newルートコンポーネント
+├── pages/                   # Pages Router（レガシー、まだアクティブ）
+│   ├── _app.tsx             # アプリラッパー
+│   └── index.tsx            # ルートルートコンポーネント
+├── styles/globals.css       # グローバルTailwind CSSインポート
+├── public/                  # 静的アセット（favicon、画像）
+├── .github/workflows/       # デプロイ用GitHub Actions
+├── next.config.js           # 静的エクスポート + basePathを持つNext.js設定
+├── tailwind.config.js       # Tailwind CSS設定
+├── tsconfig.json            # TypeScript設定
+└── package.json             # 依存関係とスクリプト
 ```
 
-### Architecture Notes
-- **Dual Router Setup**: Uses both Pages Router (`pages/`) and App Router (`app/`) - both are functional
-- **Static Export**: Configured for GitHub Pages with `output: 'export'` and `basePath: '/simplenotebook'`
-- **Styling**: Tailwind CSS with PostCSS processing
-- **State Management**: Uses localStorage for note persistence (client-side only)
-- **Deployment**: Automatic deployment via GitHub Actions to GitHub Pages on main branch push
+### アーキテクチャノート
+- **デュアルルーターセットアップ**: Pages Router（`pages/`）とApp Router（`app/`）の両方を使用 - 両方とも機能します
+- **静的エクスポート**: GitHub Pages用に`output: 'export'`と`basePath: '/simplenotebook'`で設定
+- **スタイリング**: PostCSS処理を伴うTailwind CSS
+- **状態管理**: ノート永続化にlocalStorageを使用（クライアントサイドのみ）
+- **デプロイ**: mainブランチプッシュでGitHub ActionsによるGitHub Pagesへの自動デプロイ
 
-## Build and CI Information
+## ビルドとCI情報
 
-### GitHub Actions Workflow
-- **File**: `.github/workflows/nextjs.yml`
-- **Trigger**: Push to `main` branch
-- **Process**: `npm ci` → `next build` → Deploy `out/` to GitHub Pages
-- **Node Version**: 20 (specified in workflow)
-- **CRITICAL**: Build timeout in CI is sufficient - builds complete in ~18 seconds
+### GitHub Actionsワークフロー
+- **ファイル**: `.github/workflows/nextjs.yml`
+- **トリガー**: `main`ブランチへのプッシュ
+- **プロセス**: `npm ci` → `next build` → `out/`をGitHub Pagesにデプロイ
+- **Nodeバージョン**: 20（ワークフローで指定）
+- **重要**: CIでのビルドタイムアウトは十分です - ビルドは約18秒で完了
 
-### Dependencies
-- **Runtime**: Next.js 14.2.30, React 18.2.0
-- **Development**: TypeScript 5.2.2, ESLint 8.38.0, Tailwind CSS 3.4.1
-- **Security**: `npm audit` shows 0 vulnerabilities as of validation
+### 依存関係
+- **ランタイム**: Next.js 14.2.30、React 18.2.0
+- **開発**: TypeScript 5.2.2、ESLint 8.38.0、Tailwind CSS 3.4.1
+- **セキュリティ**: バリデーション時点で`npm audit`は脆弱性0を表示
 
-## Common Commands Reference
+## 共通コマンドリファレンス
 
-### Quick Command Summary
+### クイックコマンドサマリー
 ```bash
-npm install          # ~51s - Install dependencies
-npm run dev          # ~2s - Start development (http://localhost:3000/simplenotebook)
-npm run build        # ~18s - Build static site to out/
-npm run preview      # Start preview server (http://localhost:3000)
-npm run lint         # ~2s - Run ESLint validation
+npm install          # 約51秒 - 依存関係のインストール
+npm run dev          # 約2秒 - 開発開始（http://localhost:3000/simplenotebook）
+npm run build        # 約18秒 - out/への静的サイトビルド
+npm run preview      # プレビューサーバー開始（http://localhost:3000）
+npm run lint         # 約2秒 - ESLintバリデーション
 ```
 
-### Timing Expectations (NEVER CANCEL)
-- `npm install`: 51 seconds - Set timeout to 90+ seconds
-- `npm run build`: 18 seconds - Set timeout to 60+ seconds  
-- `npm run dev`: 2 seconds startup - Set timeout to 30+ seconds
-- `npm run lint`: 2 seconds - Set timeout to 30+ seconds
-- `npm run preview`: 5-10 seconds for serve install - Set timeout to 60+ seconds
+### タイミング期待値（絶対にキャンセルしない）
+- `npm install`: 51秒 - 90秒以上のタイムアウトを設定
+- `npm run build`: 18秒 - 60秒以上のタイムアウトを設定
+- `npm run dev`: 2秒で起動 - 30秒以上のタイムアウトを設定
+- `npm run lint`: 2秒 - 30秒以上のタイムアウトを設定
+- `npm run preview`: serveインストールで5-10秒 - 60秒以上のタイムアウトを設定
 
-## Troubleshooting
+## トラブルシューティング
 
-### Common Issues
-1. **404 on localhost:3000**: Access `http://localhost:3000/simplenotebook` instead (dev mode only)
-2. **npm start fails**: Use `npm run preview` for production testing (static export doesn't support server)
-3. **Missing serve package**: `npm run preview` auto-installs serve via npx on first run
-4. **ESLint version warnings**: These are expected and don't affect functionality
-5. **Asset loading errors in preview**: Expected in preview mode due to GitHub Pages basePath optimization
+### よくある問題
+1. **localhost:3000で404**: 代わりに`http://localhost:3000/simplenotebook`にアクセス（開発モードのみ）
+2. **npm startが失敗**: 本番テストには`npm run preview`を使用（静的エクスポートはサーバーをサポートしません）
+3. **serveパッケージがない**: `npm run preview`は初回実行時にnpx経由でserveを自動インストール
+4. **ESLintバージョン警告**: これらは想定内で機能に影響しません
+5. **プレビューでアセット読み込みエラー**: GitHub Pages basePath最適化のためプレビューモードでは想定内
 
-### File Locations for Quick Access
-- **Main Components**: `pages/index.tsx` and `app/notes/new/page.tsx`
-- **Styling**: `styles/globals.css` (Tailwind imports)
-- **Configuration**: `next.config.js` (basePath), `tailwind.config.js` (CSS config)
-- **CI/CD**: `.github/workflows/nextjs.yml` (deployment workflow)
+### クイックアクセス用ファイル場所
+- **メインコンポーネント**: `pages/index.tsx`と`app/notes/new/page.tsx`
+- **スタイリング**: `styles/globals.css`（Tailwindインポート）
+- **設定**: `next.config.js`（basePath）、`tailwind.config.js`（CSS設定）
+- **CI/CD**: `.github/workflows/nextjs.yml`（デプロイワークフロー）
 
-### Development Tips
-- Both route systems work: Pages Router serves `/` and App Router serves `/notes/new`
-- localStorage key used: `new-note-content` for persistence
-- Tailwind classes are available throughout the app
-- TypeScript strict mode is enabled
-- Fast Refresh works in development mode
+### 開発のヒント
+- 両方のルートシステムが動作: Pages Routerは`/`を、App Routerは`/notes/new`を配信
+- 使用されるlocalStorageキー: 永続化のための`new-note-content`
+- Tailwindクラスはアプリ全体で利用可能
+- TypeScript strictモードが有効
+- 開発モードでFast Refreshが動作
