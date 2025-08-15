@@ -22,7 +22,13 @@ function AuthGuardContent({ children }: { children: React.ReactNode }) {
       // Give Amplify time to process the callback
       const timer = setTimeout(() => {
         setIsProcessingCallback(false);
-      }, 3000);
+      const OAUTH_CALLBACK_TIMEOUT =
+        typeof process !== 'undefined' && process.env.NEXT_PUBLIC_OAUTH_CALLBACK_TIMEOUT
+          ? parseInt(process.env.NEXT_PUBLIC_OAUTH_CALLBACK_TIMEOUT, 10)
+          : 3000;
+      const timer = setTimeout(() => {
+        setIsProcessingCallback(false);
+      }, OAUTH_CALLBACK_TIMEOUT);
       
       return () => clearTimeout(timer);
     }
