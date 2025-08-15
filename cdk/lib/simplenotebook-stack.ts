@@ -88,7 +88,7 @@ export class SimplenotebookStack extends cdk.Stack {
           authorizationCodeGrant: true,
         },
         scopes: [cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE, cognito.OAuthScope.OPENID],
-        callbackUrls: ['https://ougotti.github.io/simplenotebook/callback'],
+        callbackUrls: ['https://ougotti.github.io/simplenotebook/notes/new'],
         logoutUrls: ['https://ougotti.github.io/simplenotebook/'],
       },
       supportedIdentityProviders: [
