@@ -1,16 +1,43 @@
 'use client'
-import { useState, FormEvent, useEffect } from 'react'
+import { useState, FormEvent, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useAuth } from '../../../hooks/useAuth'
 import { useNotes } from '../../../hooks/useNotes'
 
-export default function NewNotePage() {
+function NewNotePageContent() {
   const [content, setContent] = useState('')
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [isProcessingCallback, setIsProcessingCallback] = useState(false)
   
+  const searchParams = useSearchParams()
   const { user, signOut } = useAuth()
   const { notes, loading, error, createNote, fetchNotes } = useNotes()
+
+  // Handle OAuth callback
+  useEffect(() => {
+    if (!searchParams) return
+    
+    const code = searchParams.get('code')
+    const state = searchParams.get('state')
+    
+    if (code && state) {
+      setIsProcessingCallback(true)
+      setMessage('Processing OAuth callback...')
+      
+      // AWS Amplify handles the OAuth callback automatically
+      // We just need to clean up the URL after processing
+      const timer = setTimeout(() => {
+        // Clean up URL parameters
+        window.history.replaceState({}, '', window.location.pathname)
+        setIsProcessingCallback(false)
+        setMessage('')
+      }, OAUTH_CALLBACK_TIMEOUT_MS)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const saved = window.localStorage.getItem('new-note-content')
@@ -56,6 +83,16 @@ export default function NewNotePage() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      {/* OAuth Callback Processing Message */}
+      {isProcessingCallback && (
+        <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-700">
+          <p className="flex items-center">
+            <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400 mr-2"></span>
+            Processing OAuth authentication...
+          </p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">SimpleNotebook</h1>
@@ -93,7 +130,7 @@ export default function NewNotePage() {
             />
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || isProcessingCallback}
               className="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-400"
             >
               {isSaving ? '保存中...' : '保存'}
@@ -154,5 +191,20 @@ export default function NewNotePage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function NewNotePage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <NewNotePageContent />
+    </Suspense>
   )
 }

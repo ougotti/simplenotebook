@@ -1,16 +1,47 @@
 'use client';
 
 import { useAuth } from '../hooks/useAuth';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
 
-export default function AuthGuard({ children }: { children: React.ReactNode }) {
+function AuthGuardContent({ children }: { children: React.ReactNode }) {
   const { user, loading, signIn } = useAuth();
+  const searchParams = useSearchParams();
+  const [isProcessingCallback, setIsProcessingCallback] = useState(false);
 
-  if (loading) {
+  // Check if this is an OAuth callback
+  useEffect(() => {
+    if (!searchParams) return;
+    
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    
+    if (code && state) {
+      setIsProcessingCallback(true);
+      
+      // Give Amplify time to process the callback
+      const timer = setTimeout(() => {
+        setIsProcessingCallback(false);
+      const OAUTH_CALLBACK_TIMEOUT =
+        typeof process !== 'undefined' && process.env.NEXT_PUBLIC_OAUTH_CALLBACK_TIMEOUT
+          ? parseInt(process.env.NEXT_PUBLIC_OAUTH_CALLBACK_TIMEOUT, 10)
+          : 3000;
+      const timer = setTimeout(() => {
+        setIsProcessingCallback(false);
+      }, OAUTH_CALLBACK_TIMEOUT);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
+
+  if (loading || isProcessingCallback) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">
+            {isProcessingCallback ? 'Processing OAuth callback...' : 'Loading...'}
+          </p>
         </div>
       </div>
     );
@@ -42,4 +73,19 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   return <>{children}</>;
+}
+
+export default function AuthGuard({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <AuthGuardContent>{children}</AuthGuardContent>
+    </Suspense>
+  );
 }
