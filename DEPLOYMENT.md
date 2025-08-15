@@ -8,9 +8,13 @@ This guide explains how to deploy the SimpleNotebook application with AWS backen
 2. **Google Cloud Console** project for OAuth credentials
 3. **GitHub repository** with GitHub Pages enabled
 
-## Setup Steps
+## Automated Deployment (Recommended)
 
-### 1. Google OAuth Setup
+The application uses **fully automated CI/CD deployment** via GitHub Actions. Simply push to the main branch and the entire infrastructure will be deployed automatically.
+
+### Setup Steps
+
+#### 1. Google OAuth Setup
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select existing one
@@ -20,7 +24,7 @@ This guide explains how to deploy the SimpleNotebook application with AWS backen
 6. Add authorized redirect URI: `https://your-cognito-domain.auth.region.amazoncognito.com/oauth2/idpresponse`
 7. Note down the Client ID and Client Secret
 
-### 2. AWS Secrets Manager Setup
+#### 2. AWS Secrets Manager Setup
 
 Store the Google OAuth credentials in AWS Secrets Manager:
 
@@ -31,7 +35,7 @@ aws secretsmanager create-secret \
   --secret-string '{"client_id":"your-client-id","client_secret":"your-client-secret"}'
 ```
 
-### 3. GitHub OIDC Setup
+#### 3. GitHub OIDC Setup
 
 Create an OIDC provider in AWS IAM:
 
@@ -42,32 +46,58 @@ aws iam create-open-id-connect-provider \
   --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
 ```
 
-### 4. GitHub Secrets Configuration
+#### 4. GitHub Secrets Configuration
 
 Add the following secrets to your GitHub repository:
 
 - `AWS_ACCOUNT_ID`: Your AWS account ID
 
-### 5. Deploy Infrastructure
+#### 5. Automated Deployment
 
-The CDK stack will be automatically deployed when you push to the main branch. The stack includes:
+**That's it!** Push to the main branch and GitHub Actions will automatically:
 
-- Cognito User Pool with Google IdP
-- API Gateway with Lambda functions
-- S3 bucket for note storage
-- IAM roles and policies
+1. **Deploy AWS Infrastructure**: CDK stack with Cognito, API Gateway, Lambda, and S3
+2. **Extract CDK Outputs**: Automatically retrieve all AWS resource URLs and IDs
+3. **Generate Config**: Create `config.json` with real AWS resource URLs
+4. **Build SPA**: Build the Next.js application with the correct configuration
+5. **Deploy to GitHub Pages**: Deploy the built site with working AWS integration
 
-### 6. Manual Configuration (if needed)
+The deployment workflow includes:
+- ✅ CDK deployment with error handling
+- ✅ Automatic extraction of AWS resource URLs from CDK outputs
+- ✅ Validation that all required AWS resources were created
+- ✅ Generation and validation of `config.json` with real values
+- ✅ Verification that no placeholder values remain
+- ✅ Build and deployment to GitHub Pages
 
-If automatic configuration fails, you can manually update the config file:
+#### 6. Verify Deployment
+
+After pushing to main, check the GitHub Actions workflow to ensure:
+
+1. **AWS Infrastructure Deployed**: CDK stack deploys successfully
+2. **Config Generated**: `config.json` contains real AWS URLs (not placeholders)
+3. **Build Successful**: Next.js build completes without errors
+4. **GitHub Pages Updated**: Site is accessible at your GitHub Pages URL
+
+The deployed application will automatically:
+- Detect it's in production mode (real AWS URLs in config)
+- Enable authentication flow with Cognito
+- Make API calls to real AWS resources
+- Support CORS for both development and production origins
+
+## Manual Configuration (Legacy/Troubleshooting Only)
+
+> **Note**: Manual configuration is only needed for troubleshooting. The automated CI/CD process above handles all configuration automatically.
+
+If the automated deployment fails and you need to manually configure:
 
 1. After CDK deployment, get the stack outputs:
    ```bash
    cd cdk
-   npx cdk output
+   npx cdk deploy --outputs-file cdk-outputs.json
    ```
 
-2. Update `public/config/config.json` with the correct values:
+2. Manually update `public/config/config.json` with the values from `cdk-outputs.json`:
    ```json
    {
      "apiBaseUrl": "https://your-api-id.execute-api.ap-northeast-1.amazonaws.com/prod",

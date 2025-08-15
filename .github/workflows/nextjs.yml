@@ -65,24 +65,55 @@ jobs:
         working-directory: cdk/lambda
         run: npm install --production
       
-      - name: Deploy CDK stack
+      - name: Deploy CDK stack and get outputs
         working-directory: cdk
-        run: npx cdk deploy --require-approval never
+        run: npx cdk deploy --require-approval never --outputs-file cdk-outputs.json
         env:
           ENVIRONMENT: prod
       
-      - name: Get stack outputs
+      - name: Extract stack outputs from CDK outputs file
         working-directory: cdk
         run: |
-          echo "API_URL=$(aws cloudformation describe-stacks --stack-name SimplenotebookStack --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' --output text)" >> $GITHUB_ENV
-          echo "CLIENT_ID=$(aws cloudformation describe-stacks --stack-name SimplenotebookStack --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' --output text)" >> $GITHUB_ENV
-          echo "USER_POOL_ID=$(aws cloudformation describe-stacks --stack-name SimplenotebookStack --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' --output text)" >> $GITHUB_ENV
-          echo "IDENTITY_POOL_ID=$(aws cloudformation describe-stacks --stack-name SimplenotebookStack --query 'Stacks[0].Outputs[?OutputKey==`IdentityPoolId`].OutputValue' --output text)" >> $GITHUB_ENV
-          echo "COGNITO_DOMAIN=$(aws cloudformation describe-stacks --stack-name SimplenotebookStack --query 'Stacks[0].Outputs[?OutputKey==`CognitoDomain`].OutputValue' --output text)" >> $GITHUB_ENV
-          echo "NOTES_BUCKET=$(aws cloudformation describe-stacks --stack-name SimplenotebookStack --query 'Stacks[0].Outputs[?OutputKey==`NotesBucketName`].OutputValue' --output text)" >> $GITHUB_ENV
+          # Extract values from CDK outputs JSON file
+          STACK_NAME=$(jq -r 'keys[0]' cdk-outputs.json)
+          echo "API_URL=$(jq -r ".$STACK_NAME.ApiUrl" cdk-outputs.json)" >> $GITHUB_ENV
+          echo "CLIENT_ID=$(jq -r ".$STACK_NAME.UserPoolClientId" cdk-outputs.json)" >> $GITHUB_ENV
+          echo "USER_POOL_ID=$(jq -r ".$STACK_NAME.UserPoolId" cdk-outputs.json)" >> $GITHUB_ENV
+          echo "IDENTITY_POOL_ID=$(jq -r ".$STACK_NAME.IdentityPoolId" cdk-outputs.json)" >> $GITHUB_ENV
+          echo "COGNITO_DOMAIN=$(jq -r ".$STACK_NAME.CognitoDomain" cdk-outputs.json)" >> $GITHUB_ENV
+          echo "NOTES_BUCKET=$(jq -r ".$STACK_NAME.NotesBucketName" cdk-outputs.json)" >> $GITHUB_ENV
+          
+          # Validate that all required outputs were extracted
+          if [[ "$API_URL" == "null" || "$CLIENT_ID" == "null" || "$USER_POOL_ID" == "null" || \
+                "$IDENTITY_POOL_ID" == "null" || "$COGNITO_DOMAIN" == "null" || "$NOTES_BUCKET" == "null" ]]; then
+            echo "Error: One or more CDK outputs are missing or null"
+            echo "CDK outputs file contents:"
+            cat cdk-outputs.json
+            exit 1
+          REQUIRED_VARS=("API_URL" "CLIENT_ID" "USER_POOL_ID" "IDENTITY_POOL_ID" "COGNITO_DOMAIN" "NOTES_BUCKET")
+          for var in "${REQUIRED_VARS[@]}"; do
+            if [[ "${!var}" == "null" ]]; then
+              echo "Error: $var is missing or null"
+              echo "CDK outputs file contents:"
+              cat cdk-outputs.json
+              exit 1
+            fi
+          done
+          
+          echo "✅ Successfully extracted all CDK outputs:"
+          echo "API_URL: $API_URL"
+          echo "CLIENT_ID: $CLIENT_ID"
+          echo "USER_POOL_ID: $USER_POOL_ID"
+          echo "IDENTITY_POOL_ID: $IDENTITY_POOL_ID"
+          echo "COGNITO_DOMAIN: $COGNITO_DOMAIN"
+          echo "NOTES_BUCKET: $NOTES_BUCKET"
       
-      - name: Update config.json
+      - name: Generate and validate config.json
         run: |
+          # Create public/config directory if it doesn't exist
+          mkdir -p public/config
+          
+          # Generate config.json with CDK outputs
           cat > public/config/config.json << EOF
           {
             "apiBaseUrl": "${{ env.API_URL }}",
@@ -95,6 +126,9 @@ jobs:
             "notesPrefix": "prod/"
           }
           EOF
+          
+          # Use our verification script to validate the config
+          node scripts/verify-config.js
       
       - name: Upload config as artifact
         uses: actions/upload-artifact@v4
@@ -117,11 +151,16 @@ jobs:
           # Refresh font cache
           sudo fc-cache -fv
       
-      - name: Download config
+      - name: Download and verify config
         uses: actions/download-artifact@v4
         with:
           name: config
           path: public/config/
+      
+      - name: Verify config.json was downloaded
+        run: |
+          # Use our verification script to validate the downloaded config
+          node scripts/verify-config.js
       
       - name: Detect package manager
         id: detect-package-manager
