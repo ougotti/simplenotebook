@@ -32,6 +32,9 @@ export function isLocalMode(config?: AppConfig): boolean {
   
   // Check if config contains placeholder values indicating local development
   return config.apiBaseUrl.includes('your-api-id') ||
+         config.apiBaseUrl.includes('PLACEHOLDER_API_URL') ||
          config.cognitoDomain.includes('your-domain') ||
-         config.clientId.includes('your-client-id');
+         config.cognitoDomain.includes('PLACEHOLDER_COGNITO_DOMAIN') ||
+         config.clientId.includes('your-client-id') ||
+         config.clientId.includes('PLACEHOLDER_CLIENT_ID');
 }
