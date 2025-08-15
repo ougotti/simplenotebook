@@ -28,6 +28,11 @@ function NewNotePageContent() {
       
       // AWS Amplify handles the OAuth callback automatically
       // We just need to clean up the URL after processing
+      const OAUTH_CALLBACK_TIMEOUT_MS =
+        typeof process !== 'undefined' && process.env.NEXT_PUBLIC_OAUTH_CALLBACK_TIMEOUT
+          ? parseInt(process.env.NEXT_PUBLIC_OAUTH_CALLBACK_TIMEOUT, 10)
+          : 3000;
+      
       const timer = setTimeout(() => {
         // Clean up URL parameters
         window.history.replaceState({}, '', window.location.pathname)
