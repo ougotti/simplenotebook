@@ -86,6 +86,8 @@ jobs:
             echo "CDK outputs file contents:"
             cat cdk-outputs.json
             exit 1
+          fi
+          
           REQUIRED_VARS=("API_URL" "CLIENT_ID" "USER_POOL_ID" "IDENTITY_POOL_ID" "COGNITO_DOMAIN" "NOTES_BUCKET")
           for var in "${REQUIRED_VARS[@]}"; do
             if [[ "${!var}" == "null" ]]; then
