@@ -56,11 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (isMounted) {
             setUser(currentUser);
             
-            // Set access token for API client
+            // Set ID token for API client (Cognito User Pool Authorizer expects ID tokens)
             const session = await fetchAuthSession();
-            const accessToken = session.tokens?.accessToken?.toString();
-            if (accessToken) {
-              apiClient.setAccessToken(accessToken);
+            const idToken = session.tokens?.idToken?.toString();
+            if (idToken) {
+              apiClient.setBearerToken(idToken);
             }
           }
         }
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         await signOut();
         setUser(null);
-        apiClient.setAccessToken('');
+        apiClient.setBearerToken('');
       }
     } catch (error) {
       console.error('Sign out error:', error);

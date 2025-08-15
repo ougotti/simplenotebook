@@ -36,8 +36,21 @@ class ApiClient {
     return this._isLocalMode!;
   }
 
-  setAccessToken(token: string) {
+  /**
+   * Sets the bearer token for API authentication.
+   * Supports both ID tokens (for Cognito User Pool Authorizers) and access tokens.
+   * @param token - JWT token string (ID token or access token)
+   */
+  setBearerToken(token: string) {
     this.accessToken = token;
+  }
+
+  /**
+   * @deprecated Use setBearerToken instead. Maintained for backward compatibility.
+   * @param token - JWT token string
+   */
+  setAccessToken(token: string) {
+    this.setBearerToken(token);
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
