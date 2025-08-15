@@ -15,3 +15,7 @@
 Tailwind CSS を使用しており、PostCSS 経由でスタイルを生成します。
 
 `main` ブランチへの push により、[GitHub Actions ワークフロー](.github/workflows/nextjs.yml) が実行され、`out` ディレクトリの内容が GitHub Pages にデプロイされます。Next.js 14 では `next export` は非推奨のため、`next.config.js` の `output: 'export'` と `npm run build`（＝`next build`）で静的書き出しされます。
+
+## デプロイ手順
+
+AWS サービスを使用した本格的なデプロイ手順については、[DEPLOY.md](DEPLOY.md) を参照してください。
