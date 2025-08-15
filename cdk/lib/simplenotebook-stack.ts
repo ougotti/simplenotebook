@@ -62,8 +62,8 @@ export class SimplenotebookStack extends cdk.Stack {
     // Google Identity Provider
     const googleProvider = new cognito.UserPoolIdentityProviderGoogle(this, 'GoogleProvider', {
       userPool,
-      clientId: googleOAuthSecret.secretValueFromJson('client_id').toString(),
-      clientSecret: googleOAuthSecret.secretValueFromJson('client_secret').toString(),
+      clientId: googleOAuthSecret.secretValueFromJson('client_id').unsafeUnwrap(),
+      clientSecretValue: googleOAuthSecret.secretValueFromJson('client_secret'),
       scopes: ['email', 'profile'],
       attributeMapping: {
         email: cognito.ProviderAttribute.GOOGLE_EMAIL,
@@ -311,7 +311,7 @@ export class SimplenotebookStack extends cdk.Stack {
       exportName: `${id}-CognitoDomain`,
     });
 
-    new cdk.CfnOutput(this, 'NotesBucket', {
+    new cdk.CfnOutput(this, 'NotesBucketName', {
       value: notesBucket.bucketName,
       description: 'S3 Bucket for notes',
       exportName: `${id}-NotesBucket`,
