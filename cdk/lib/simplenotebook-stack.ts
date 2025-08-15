@@ -36,6 +36,7 @@ export class SimplenotebookStack extends cdk.Stack {
           allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.PUT, s3.HttpMethods.DELETE],
           allowedOrigins: ['https://ougotti.github.io'],
           allowedHeaders: ['*'],
+          exposedHeaders: ['ETag'],
           maxAge: 300,
         },
       ],
@@ -175,7 +176,7 @@ export class SimplenotebookStack extends cdk.Stack {
       defaultCorsPreflightOptions: {
         allowOrigins: ['https://ougotti.github.io'],
         allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowHeaders: ['Content-Type', 'Authorization'],
+        allowHeaders: ['Authorization', 'Content-Type'],
       },
     });
 

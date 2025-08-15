@@ -23,7 +23,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         statusCode: 401,
         headers: {
           'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
         },
         body: JSON.stringify({ error: 'Unauthorized' }),
       };
@@ -37,6 +37,18 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const userPrefix = `${NOTES_PREFIX}${sanitizedUserId}/`;
 
     switch (`${httpMethod} ${resource}`) {
+      case 'OPTIONS /notes':
+      case 'OPTIONS /notes/{noteId}':
+        return {
+          statusCode: 204,
+          headers: {
+            'Access-Control-Allow-Origin': 'https://ougotti.github.io',
+            'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+          },
+          body: '',
+        };
+      
       case 'GET /notes':
         return await listNotes(userPrefix);
       
@@ -57,7 +69,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           statusCode: 405,
           headers: {
             'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+            'Access-Control-Allow-Headers': 'Authorization,Content-Type',
           },
           body: JSON.stringify({ error: 'Method not allowed' }),
         };
@@ -68,7 +80,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       statusCode: 500,
       headers: {
         'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
       },
       body: JSON.stringify({ error: 'Internal server error' }),
     };
@@ -107,7 +119,7 @@ async function listNotes(userPrefix: string): Promise<APIGatewayProxyResult> {
     statusCode: 200,
     headers: {
       'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-      'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+      'Access-Control-Allow-Headers': 'Authorization,Content-Type',
     },
     body: JSON.stringify({ notes }),
   };
@@ -138,7 +150,7 @@ async function createNote(userPrefix: string, noteData: Partial<Note>): Promise<
     statusCode: 201,
     headers: {
       'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-      'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+      'Access-Control-Allow-Headers': 'Authorization,Content-Type',
     },
     body: JSON.stringify({ note }),
   };
@@ -150,7 +162,7 @@ async function getNote(userPrefix: string, noteId?: string): Promise<APIGatewayP
       statusCode: 400,
       headers: {
         'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
       },
       body: JSON.stringify({ error: 'Note ID is required' }),
     };
@@ -173,7 +185,7 @@ async function getNote(userPrefix: string, noteId?: string): Promise<APIGatewayP
       statusCode: 200,
       headers: {
         'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
       },
       body: JSON.stringify({ note }),
     };
@@ -183,7 +195,7 @@ async function getNote(userPrefix: string, noteId?: string): Promise<APIGatewayP
         statusCode: 404,
         headers: {
           'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
         },
         body: JSON.stringify({ error: 'Note not found' }),
       };
@@ -198,7 +210,7 @@ async function updateNote(userPrefix: string, noteId?: string, noteData?: Partia
       statusCode: 400,
       headers: {
         'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
       },
       body: JSON.stringify({ error: 'Note ID is required' }),
     };
@@ -240,7 +252,7 @@ async function updateNote(userPrefix: string, noteId?: string, noteData?: Partia
       statusCode: 200,
       headers: {
         'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
       },
       body: JSON.stringify({ note: updatedNote }),
     };
@@ -250,7 +262,7 @@ async function updateNote(userPrefix: string, noteId?: string, noteData?: Partia
         statusCode: 404,
         headers: {
           'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
         },
         body: JSON.stringify({ error: 'Note not found' }),
       };
@@ -265,7 +277,7 @@ async function deleteNote(userPrefix: string, noteId?: string): Promise<APIGatew
       statusCode: 400,
       headers: {
         'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
       },
       body: JSON.stringify({ error: 'Note ID is required' }),
     };
@@ -286,7 +298,7 @@ async function deleteNote(userPrefix: string, noteId?: string): Promise<APIGatew
       statusCode: 204,
       headers: {
         'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
       },
       body: '',
     };
@@ -296,7 +308,7 @@ async function deleteNote(userPrefix: string, noteId?: string): Promise<APIGatew
       statusCode: 500,
       headers: {
         'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
       },
       body: JSON.stringify({ error: 'Failed to delete note' }),
     };
