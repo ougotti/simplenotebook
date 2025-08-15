@@ -1,0 +1,10 @@
+{
+  "apiBaseUrl": "https://your-api-id.execute-api.ap-northeast-1.amazonaws.com/prod",
+  "cognitoDomain": "https://your-domain.auth.ap-northeast-1.amazoncognito.com",
+  "clientId": "your-client-id",
+  "userPoolId": "ap-northeast-1_your-user-pool-id",
+  "identityPoolId": "ap-northeast-1:your-identity-pool-id",
+  "region": "ap-northeast-1",
+  "notesBucket": "your-notes-bucket",
+  "notesPrefix": "prod/"
+}

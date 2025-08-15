@@ -1,4 +1,6 @@
 import '../styles/globals.css'
+import { AuthProvider } from '../hooks/useAuth'
+import AuthGuard from '../components/AuthGuard'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,7 +13,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   <link rel="icon" href="/simplenotebook/favicon.ico" />
       </head>
       <body className="p-4">
-        {children}
+        <AuthProvider>
+          <AuthGuard>
+            {children}
+          </AuthGuard>
+        </AuthProvider>
       </body>
     </html>
   )

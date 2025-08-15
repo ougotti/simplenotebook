@@ -4,6 +4,13 @@
 /.next
 /out
 
+# CDK
+/cdk/node_modules
+/cdk/cdk.out
+/cdk/*.js
+/cdk/*.d.ts
+/cdk/lambda/node_modules
+
 # misc
 .DS_Store
 npm-debug.log*
