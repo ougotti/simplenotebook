@@ -75,7 +75,6 @@ function verifyConfig() {
   }
 
   // Check AWS-specific formats
-  if (!config.apiBaseUrl.includes('execute-api') || !config.apiBaseUrl.includes('amazonaws.com')) {
   try {
     const apiUrl = new URL(config.apiBaseUrl);
     // AWS API Gateway endpoint pattern: {restapi-id}.execute-api.{region}.amazonaws.com
@@ -89,7 +88,6 @@ function verifyConfig() {
     process.exit(1);
   }
 
-  if (!config.cognitoDomain.includes('auth') || !config.cognitoDomain.includes('amazoncognito.com')) {
   // Validate Cognito domain format: https://{domain}.auth.{region}.amazoncognito.com
   const cognitoDomainPattern = /^https:\/\/([a-zA-Z0-9-]+)\.auth\.([a-z0-9-]+)\.amazoncognito\.com$/;
   if (!cognitoDomainPattern.test(config.cognitoDomain)) {
@@ -97,7 +95,6 @@ function verifyConfig() {
     process.exit(1);
   }
 
-  if (!config.identityPoolId.includes(':')) {
   // Validate identityPoolId format: region:uuid
   const identityPoolIdRegex = /^[a-z]{2}-[a-z]+-\d{1}:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
   if (!identityPoolIdRegex.test(config.identityPoolId)) {
