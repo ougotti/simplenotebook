@@ -16,17 +16,26 @@ In the GitHub Actions workflow, the following font packages are installed:
 
 ## Implementation Details
 
+### Copilot Environment Setup
+
+The project provides a dedicated workflow (`.github/workflows/copilot-setup-steps.yml`) and composite action (`.github/actions/setup-japanese-fonts/action.yml`) for setting up Japanese fonts in GitHub Actions environments:
+
+**Composite Action Usage:**
+```yaml
+- name: Setup Japanese fonts
+  uses: ./.github/actions/setup-japanese-fonts
+```
+
+**Standalone Workflow:**
+The `copilot-setup-steps.yml` workflow can be called by other workflows or run manually to set up the Copilot environment with Japanese font support.
+
 ### GitHub Actions Font Installation
 
-The workflow (`.github/workflows/nextjs.yml`) includes font installation steps for both the `deploy-aws` and `build` jobs:
+The main deployment workflow (`.github/workflows/nextjs.yml`) uses the composite action for font installation in both the `deploy-aws` and `build` jobs:
 
 ```yaml
-- name: Install Japanese fonts
-  run: |
-    sudo apt-get update
-    sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji fonts-liberation
-    # Refresh font cache
-    sudo fc-cache -fv
+- name: Setup Japanese fonts
+  uses: ./.github/actions/setup-japanese-fonts
 ```
 
 ### Playwright Configuration
@@ -36,13 +45,6 @@ The project includes a Playwright configuration (`playwright.config.ts`) optimiz
 - Japanese locale settings (`ja-JP`)
 - Font rendering optimizations
 - Browser launch options for proper font handling
-
-### Testing
-
-A test suite (`tests/japanese-fonts.spec.ts`) verifies that:
-- Japanese UI text displays correctly
-- Japanese input works properly
-- Date formatting in Japanese is handled correctly
 
 ## Local Development
 
@@ -61,21 +63,6 @@ Japanese fonts are typically included by default.
 Japanese fonts are typically included by default.
 
 ## Usage
-
-### Running Tests
-
-To run the Japanese font rendering tests:
-
-```bash
-# Install Playwright browsers (one-time setup)
-npx playwright install
-
-# Run end-to-end tests
-npm run test:e2e
-
-# Run tests with UI mode
-npm run test:e2e:ui
-```
 
 ### Verifying Font Support
 
