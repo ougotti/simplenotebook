@@ -10,10 +10,11 @@ function NewNotePageContent() {
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isProcessingCallback, setIsProcessingCallback] = useState(false)
+  const [editingNote, setEditingNote] = useState<string | null>(null)
   
   const searchParams = useSearchParams()
   const { user, signOut } = useAuth()
-  const { notes, loading, error, createNote, fetchNotes } = useNotes()
+  const { notes, loading, error, createNote, updateNote, deleteNote, getNote, fetchNotes } = useNotes()
 
   // Handle OAuth callback
   useEffect(() => {
@@ -28,6 +29,11 @@ function NewNotePageContent() {
       
       // AWS Amplify handles the OAuth callback automatically
       // We just need to clean up the URL after processing
+      const OAUTH_CALLBACK_TIMEOUT_MS =
+        typeof process !== 'undefined' && process.env.NEXT_PUBLIC_OAUTH_CALLBACK_TIMEOUT
+          ? parseInt(process.env.NEXT_PUBLIC_OAUTH_CALLBACK_TIMEOUT, 10)
+          : 3000;
+      
       const timer = setTimeout(() => {
         // Clean up URL parameters
         window.history.replaceState({}, '', window.location.pathname)
@@ -62,23 +68,97 @@ function NewNotePageContent() {
     setMessage('')
 
     try {
-      await createNote({
-        title: title || 'Untitled',
-        content,
-      })
+      if (editingNote) {
+        // Update existing note
+        await updateNote(editingNote, {
+          title: title || 'Untitled',
+          content,
+        })
+        setMessage('ノートを更新しました！')
+      } else {
+        // Create new note
+        await createNote({
+          title: title || 'Untitled',
+          content,
+        })
+        setMessage('ノートを保存しました！')
+      }
       
       // Clear form after successful save
       setContent('')
       setTitle('')
+      setEditingNote(null)
       window.localStorage.removeItem('new-note-content')
       window.localStorage.removeItem('new-note-title')
-      setMessage('ノートを保存しました！')
       
     } catch (err) {
-      setMessage('保存に失敗しました。もう一度お試しください。')
+      setMessage(editingNote ? '更新に失敗しました。もう一度お試しください。' : '保存に失敗しました。もう一度お試しください。')
     } finally {
       setIsSaving(false)
     }
+  }
+
+  async function handleEditNote(noteId: string) {
+    try {
+      const note = await getNote(noteId)
+      if (note) {
+        setTitle(note.title)
+        setContent(note.content)
+        setEditingNote(noteId)
+        setMessage('')
+      }
+    } catch (err) {
+      setMessage('ノートの読み込みに失敗しました。')
+    }
+  }
+
+  async function handleDeleteNote(noteId: string) {
+    if (!confirm('このノートを削除しますか？')) {
+      return
+    }
+
+    try {
+      await deleteNote(noteId)
+      setMessage('ノートを削除しました。')
+    } catch (err) {
+      setMessage('削除に失敗しました。もう一度お試しください。')
+    }
+  }
+  function handleDeleteNote(noteId: string) {
+    setPendingDeleteNoteId(noteId)
+    setShowDeleteModal(true)
+  }
+
+  async function confirmDeleteNote() {
+    if (!pendingDeleteNoteId) return
+    setShowDeleteModal(false)
+    try {
+      await deleteNote(pendingDeleteNoteId)
+      setMessage('ノートを削除しました。')
+      // Optionally clear edit state if the deleted note was being edited
+      if (editingNote === pendingDeleteNoteId) {
+        setEditingNote(null)
+        setTitle('')
+        setContent('')
+      }
+    } catch (err) {
+      setMessage('削除に失敗しました。もう一度お試しください。')
+    } finally {
+      setPendingDeleteNoteId(null)
+    }
+  }
+
+  function cancelDeleteNote() {
+    setShowDeleteModal(false)
+    setPendingDeleteNoteId(null)
+  }
+  function handleCancelEdit() {
+    setEditingNote(null)
+    setTitle('')
+    setContent('')
+    setMessage('')
+    window.localStorage.removeItem('new-note-content')
+    window.localStorage.removeItem('new-note-title')
   }
 
   return (
@@ -113,7 +193,19 @@ function NewNotePageContent() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* New Note Form */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">新規ノート</h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">
+              {editingNote ? 'ノートを編集' : '新規ノート'}
+            </h2>
+            {editingNote && (
+              <button
+                onClick={handleCancelEdit}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                キャンセル
+              </button>
+            )}
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
               type="text"
@@ -133,7 +225,7 @@ function NewNotePageContent() {
               disabled={isSaving || isProcessingCallback}
               className="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-400"
             >
-              {isSaving ? '保存中...' : '保存'}
+              {isSaving ? (editingNote ? '更新中...' : '保存中...') : (editingNote ? '更新' : '保存')}
             </button>
             {message && (
               <p className={`text-sm ${message.includes('失敗') ? 'text-red-600' : 'text-green-600'}`}>
@@ -176,15 +268,35 @@ function NewNotePageContent() {
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {notes.map((note) => (
               <div key={note.id} className="border rounded p-3 hover:bg-gray-50">
-                <h3 className="font-medium text-sm">{note.title}</h3>
-                <p className="text-xs text-gray-500">
-                  作成: {new Date(note.createdAt).toLocaleDateString('ja-JP')}
-                  {note.updatedAt !== note.createdAt && (
-                    <span className="ml-2">
-                      更新: {new Date(note.updatedAt).toLocaleDateString('ja-JP')}
-                    </span>
-                  )}
-                </p>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h3 className="font-medium text-sm">{note.title}</h3>
+                    <p className="text-xs text-gray-500">
+                      作成: {new Date(note.createdAt).toLocaleDateString('ja-JP')}
+                      {note.updatedAt !== note.createdAt && (
+                        <span className="ml-2">
+                          更新: {new Date(note.updatedAt).toLocaleDateString('ja-JP')}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex space-x-2 ml-2">
+                    <button
+                      onClick={() => handleEditNote(note.id)}
+                      className="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded border border-blue-200 hover:border-blue-300"
+                      disabled={isSaving}
+                    >
+                      編集
+                    </button>
+                    <button
+                      onClick={() => handleDeleteNote(note.id)}
+                      className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded border border-red-200 hover:border-red-300"
+                      disabled={isSaving}
+                    >
+                      削除
+                    </button>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
