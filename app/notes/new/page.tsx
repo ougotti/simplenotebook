@@ -11,9 +11,11 @@ function NewNotePageContent() {
   const [isSaving, setIsSaving] = useState(false)
   const [isProcessingCallback, setIsProcessingCallback] = useState(false)
   const [editingNote, setEditingNote] = useState<string | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [pendingDeleteNoteId, setPendingDeleteNoteId] = useState<string | null>(null)
   
   const searchParams = useSearchParams()
-  const { user, signOut } = useAuth()
+  const { user, signOut, isLocal } = useAuth()
   const { notes, loading, error, createNote, updateNote, deleteNote, getNote, fetchNotes } = useNotes()
 
   // Handle OAuth callback
@@ -81,7 +83,7 @@ function NewNotePageContent() {
           title: title || 'Untitled',
           content,
         })
-        setMessage('ノートを保存しました！')
+        setMessage(isLocal ? 'ノートを保存しました（ローカル保存）' : 'ノートを保存しました！')
       }
       
       // Clear form after successful save
@@ -112,18 +114,6 @@ function NewNotePageContent() {
     }
   }
 
-  async function handleDeleteNote(noteId: string) {
-    if (!confirm('このノートを削除しますか？')) {
-      return
-    }
-
-    try {
-      await deleteNote(noteId)
-      setMessage('ノートを削除しました。')
-    } catch (err) {
-      setMessage('削除に失敗しました。もう一度お試しください。')
-    }
-  }
   function handleDeleteNote(noteId: string) {
     setPendingDeleteNoteId(noteId)
     setShowDeleteModal(true)
@@ -152,6 +142,7 @@ function NewNotePageContent() {
     setShowDeleteModal(false)
     setPendingDeleteNoteId(null)
   }
+
   function handleCancelEdit() {
     setEditingNote(null)
     setTitle('')
@@ -175,7 +166,14 @@ function NewNotePageContent() {
 
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">SimpleNotebook</h1>
+        <div>
+          <h1 className="text-2xl font-bold">SimpleNotebook</h1>
+          {isLocal && (
+            <p className="text-sm text-orange-600">
+              開発モード - ローカルストレージ使用中
+            </p>
+          )}
+        </div>
         <div className="flex items-center space-x-4">
           <span className="text-sm text-gray-600">
             {user?.signInDetails?.loginId || 'User'}
@@ -302,6 +300,30 @@ function NewNotePageContent() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <h3 className="text-lg font-semibold mb-4">ノートを削除</h3>
+            <p className="text-gray-600 mb-6">このノートを削除しますか？この操作は元に戻せません。</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelDeleteNote}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={confirmDeleteNote}
+                className="px-4 py-2 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                削除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
