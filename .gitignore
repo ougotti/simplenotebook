@@ -9,6 +9,8 @@
 /cdk/cdk.out
 /cdk/*.js
 /cdk/*.d.ts
+/cdk/**/*.js
+/cdk/**/*.d.ts
 /cdk/lambda/node_modules
 
 # misc
