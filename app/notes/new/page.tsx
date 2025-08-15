@@ -88,7 +88,7 @@ function NewNotePageContent() {
         <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-700">
           <p className="flex items-center">
             <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400 mr-2"></span>
-            OAuth認証を処理中です...
+            Processing OAuth authentication...
           </p>
         </div>
       )}
