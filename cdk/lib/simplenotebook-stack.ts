@@ -64,7 +64,7 @@ export class SimplenotebookStack extends cdk.Stack {
       userPool,
       clientId: googleOAuthSecret.secretValueFromJson('client_id').unsafeUnwrap(),
       clientSecretValue: googleOAuthSecret.secretValueFromJson('client_secret'),
-      scopes: ['email', 'profile'],
+      scopes: ['openid', 'email', 'profile'],
       attributeMapping: {
         email: cognito.ProviderAttribute.GOOGLE_EMAIL,
         givenName: cognito.ProviderAttribute.GOOGLE_GIVEN_NAME,
@@ -88,7 +88,7 @@ export class SimplenotebookStack extends cdk.Stack {
           authorizationCodeGrant: true,
         },
         scopes: [cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE, cognito.OAuthScope.OPENID],
-        callbackUrls: ['https://ougotti.github.io/simplenotebook/'],
+        callbackUrls: ['https://ougotti.github.io/simplenotebook/callback'],
         logoutUrls: ['https://ougotti.github.io/simplenotebook/'],
       },
       supportedIdentityProviders: [
