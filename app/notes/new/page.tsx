@@ -24,7 +24,7 @@ function NewNotePageContent() {
     
     if (code && state) {
       setIsProcessingCallback(true)
-      setMessage('認証を処理中...')
+      setMessage('Processing OAuth callback...')
       
       // AWS Amplify handles the OAuth callback automatically
       // We just need to clean up the URL after processing
