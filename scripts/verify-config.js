@@ -76,7 +76,16 @@ function verifyConfig() {
 
   // Check AWS-specific formats
   if (!config.apiBaseUrl.includes('execute-api') || !config.apiBaseUrl.includes('amazonaws.com')) {
-    console.error('❌ Error: apiBaseUrl does not look like an AWS API Gateway URL:', config.apiBaseUrl);
+  try {
+    const apiUrl = new URL(config.apiBaseUrl);
+    // AWS API Gateway endpoint pattern: {restapi-id}.execute-api.{region}.amazonaws.com
+    const apiGatewayRegex = /^[a-z0-9\-]+\.execute-api\.[a-z0-9\-]+\.amazonaws\.com$/;
+    if (!apiGatewayRegex.test(apiUrl.hostname)) {
+      console.error('❌ Error: apiBaseUrl does not look like a valid AWS API Gateway URL:', config.apiBaseUrl);
+      process.exit(1);
+    }
+  } catch (error) {
+    console.error('❌ Error: apiBaseUrl is not a valid URL:', config.apiBaseUrl);
     process.exit(1);
   }
 
