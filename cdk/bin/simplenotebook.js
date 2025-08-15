@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+require("source-map-support/register");
+const cdk = require("aws-cdk-lib");
+const simplenotebook_stack_1 = require("../lib/simplenotebook-stack");
+const app = new cdk.App();
+const stackName = process.env.STACK_NAME || 'SimplenotebookStack';
+const environment = process.env.ENVIRONMENT || 'prod';
+new simplenotebook_stack_1.SimplenotebookStack(app, stackName, {
+    environment,
+    env: {
+        account: process.env.CDK_DEFAULT_ACCOUNT,
+        region: process.env.CDK_DEFAULT_REGION || 'ap-northeast-1',
+    },
+});
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2ltcGxlbm90ZWJvb2suanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJzaW1wbGVub3RlYm9vay50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFDQSx1Q0FBcUM7QUFDckMsbUNBQW1DO0FBQ25DLHNFQUFrRTtBQUVsRSxNQUFNLEdBQUcsR0FBRyxJQUFJLEdBQUcsQ0FBQyxHQUFHLEVBQUUsQ0FBQztBQUUxQixNQUFNLFNBQVMsR0FBRyxPQUFPLENBQUMsR0FBRyxDQUFDLFVBQVUsSUFBSSxxQkFBcUIsQ0FBQztBQUNsRSxNQUFNLFdBQVcsR0FBRyxPQUFPLENBQUMsR0FBRyxDQUFDLFdBQVcsSUFBSSxNQUFNLENBQUM7QUFFdEQsSUFBSSwwQ0FBbUIsQ0FBQyxHQUFHLEVBQUUsU0FBUyxFQUFFO0lBQ3RDLFdBQVc7SUFDWCxHQUFHLEVBQUU7UUFDSCxPQUFPLEVBQUUsT0FBTyxDQUFDLEdBQUcsQ0FBQyxtQkFBbUI7UUFDeEMsTUFBTSxFQUFFLE9BQU8sQ0FBQyxHQUFHLENBQUMsa0JBQWtCLElBQUksZ0JBQWdCO0tBQzNEO0NBQ0YsQ0FBQyxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsiIyEvdXNyL2Jpbi9lbnYgbm9kZVxuaW1wb3J0ICdzb3VyY2UtbWFwLXN1cHBvcnQvcmVnaXN0ZXInO1xuaW1wb3J0ICogYXMgY2RrIGZyb20gJ2F3cy1jZGstbGliJztcbmltcG9ydCB7IFNpbXBsZW5vdGVib29rU3RhY2sgfSBmcm9tICcuLi9saWIvc2ltcGxlbm90ZWJvb2stc3RhY2snO1xuXG5jb25zdCBhcHAgPSBuZXcgY2RrLkFwcCgpO1xuXG5jb25zdCBzdGFja05hbWUgPSBwcm9jZXNzLmVudi5TVEFDS19OQU1FIHx8ICdTaW1wbGVub3RlYm9va1N0YWNrJztcbmNvbnN0IGVudmlyb25tZW50ID0gcHJvY2Vzcy5lbnYuRU5WSVJPTk1FTlQgfHwgJ3Byb2QnO1xuXG5uZXcgU2ltcGxlbm90ZWJvb2tTdGFjayhhcHAsIHN0YWNrTmFtZSwge1xuICBlbnZpcm9ubWVudCxcbiAgZW52OiB7XG4gICAgYWNjb3VudDogcHJvY2Vzcy5lbnYuQ0RLX0RFRkFVTFRfQUNDT1VOVCxcbiAgICByZWdpb246IHByb2Nlc3MuZW52LkNES19ERUZBVUxUX1JFR0lPTiB8fCAnYXAtbm9ydGhlYXN0LTEnLFxuICB9LFxufSk7Il19
