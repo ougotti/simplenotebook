@@ -12,6 +12,7 @@
 /cdk/**/*.js
 /cdk/**/*.d.ts
 /cdk/lambda/node_modules
+/cdk/cdk-outputs.json
 
 # misc
 .DS_Store
