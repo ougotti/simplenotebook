@@ -98,7 +98,10 @@ function verifyConfig() {
   }
 
   if (!config.identityPoolId.includes(':')) {
-    console.error('❌ Error: identityPoolId does not look like a valid format:', config.identityPoolId);
+  // Validate identityPoolId format: region:uuid
+  const identityPoolIdRegex = /^[a-z]{2}-[a-z]+-\d{1}:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  if (!identityPoolIdRegex.test(config.identityPoolId)) {
+    console.error('❌ Error: identityPoolId does not match AWS format (region:uuid):', config.identityPoolId);
     process.exit(1);
   }
 
