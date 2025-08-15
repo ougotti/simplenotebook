@@ -19,7 +19,7 @@ export async function configureAmplify() {
             oauth: {
               domain: extractDomain(config.cognitoDomain),
               scopes: ['email', 'profile', 'openid'],
-              redirectSignIn: ['https://ougotti.github.io/simplenotebook/callback'],
+              redirectSignIn: ['https://ougotti.github.io/simplenotebook/note/new'],
               redirectSignOut: ['https://ougotti.github.io/simplenotebook/'],
               responseType: 'code',
             },
