@@ -63,8 +63,14 @@
 
 ## 技術スタック
 
+`main` ブランチへの push により、[GitHub Actions ワークフロー](.github/workflows/nextjs.yml) が実行され、`out` ディレクトリの内容が GitHub Pages にデプロイされます。Next.js 14 では `next export` は非推奨のため、`next.config.js` の `output: 'export'` と `npm run build`（＝`next build`）で静的書き出しされます。
+
 - **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
 - **Backend**: AWS Lambda (Node.js), API Gateway, S3
 - **認証**: Amazon Cognito, Google OAuth 2.0
 - **インフラ**: AWS CDK, CloudFormation
 - **CI/CD**: GitHub Actions, GitHub OIDC
+
+## デプロイ手順
+
+AWS サービスを使用した本格的なデプロイ手順については、[DEPLOY.md](DEPLOY.md) を参照してください。
