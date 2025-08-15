@@ -4,7 +4,7 @@ const STORAGE_PREFIX = 'simplenotebook_';
 const NOTES_KEY = `${STORAGE_PREFIX}notes`;
 
 function generateNoteId(): string {
-  return `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `note-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 function getStoredNotes(): Note[] {
