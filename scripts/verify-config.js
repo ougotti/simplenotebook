@@ -90,7 +90,10 @@ function verifyConfig() {
   }
 
   if (!config.cognitoDomain.includes('auth') || !config.cognitoDomain.includes('amazoncognito.com')) {
-    console.error('❌ Error: cognitoDomain does not look like a Cognito domain:', config.cognitoDomain);
+  // Validate Cognito domain format: https://{domain}.auth.{region}.amazoncognito.com
+  const cognitoDomainPattern = /^https:\/\/([a-zA-Z0-9-]+)\.auth\.([a-z0-9-]+)\.amazoncognito\.com$/;
+  if (!cognitoDomainPattern.test(config.cognitoDomain)) {
+    console.error('❌ Error: cognitoDomain does not match expected Cognito domain pattern:', config.cognitoDomain);
     process.exit(1);
   }
 
