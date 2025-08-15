@@ -33,6 +33,7 @@
      ```powershell
      npm i -g aws-cdk
      cd cdk; npm ci
+     # 例: aws://123456789012/ap-northeast-1
      cdk bootstrap aws://<account-id>/<region>
      cdk deploy
      ```
