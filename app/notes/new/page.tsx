@@ -33,7 +33,7 @@ function NewNotePageContent() {
         window.history.replaceState({}, '', window.location.pathname)
         setIsProcessingCallback(false)
         setMessage('')
-      }, 2000)
+      }, OAUTH_CALLBACK_TIMEOUT_MS)
       
       return () => clearTimeout(timer)
     }
