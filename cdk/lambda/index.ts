@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, _Object } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
@@ -83,7 +83,7 @@ async function listNotes(userPrefix: string): Promise<APIGatewayProxyResult> {
 
   const response = await s3Client.send(command);
   const notes = await Promise.all(
-    (response.Contents || []).map(async (object) => {
+    (response.Contents || []).map(async (object: _Object) => {
       const noteId = object.Key!.replace(userPrefix, '').replace('.json', '');
       const getCommand = new GetObjectCommand({
         Bucket: NOTES_BUCKET,
