@@ -120,12 +120,55 @@ If the automated deployment fails and you need to manually configure:
 
 ## Local Development
 
-For local development:
+For local development, you need to generate a config.json file with real AWS resource URLs from your deployed CDK stack:
 
-1. Install dependencies: `npm install`
-2. Configure AWS credentials locally
-3. Update config.json with development values
-4. Run: `npm run dev`
+### Quick Setup (Recommended)
+
+1. **Install dependencies**: `npm install`
+2. **Configure AWS credentials** locally (for CDK deployment)
+3. **Deploy CDK stack** (if not already deployed):
+   ```bash
+   cd cdk
+   npm ci
+   npx cdk deploy --outputs-file cdk-outputs.json
+   ```
+4. **Generate config from CDK outputs**:
+   ```bash
+   npm run generate-config
+   ```
+5. **Start development server**: `npm run dev`
+
+The `generate-config` script will:
+- Read `cdk/cdk-outputs.json` from your CDK deployment
+- Extract all AWS resource URLs and IDs
+- Generate `public/config/config.json` with real values
+- Validate the configuration automatically
+
+### Manual Configuration (Legacy)
+
+If you prefer to manually configure or if the automated generation fails:
+
+1. After CDK deployment, get the stack outputs:
+   ```bash
+   cd cdk
+   npx cdk deploy --outputs-file cdk-outputs.json
+   ```
+
+2. Manually update `public/config/config.json` with values from `cdk-outputs.json`:
+   ```json
+   {
+     "apiBaseUrl": "https://your-api-id.execute-api.ap-northeast-1.amazonaws.com/prod",
+     "cognitoDomain": "https://your-domain.auth.ap-northeast-1.amazoncognito.com",
+     "clientId": "your-cognito-client-id",
+     "identityPoolId": "ap-northeast-1:your-identity-pool-id",
+     "userPoolId": "ap-northeast-1_YourUserPoolId",
+     "region": "ap-northeast-1",
+     "notesBucket": "your-notes-bucket",
+     "notesPrefix": "prod/"
+   }
+   ```
+
+3. Verify your configuration: `npm run verify-config`
 
 ## Troubleshooting
 

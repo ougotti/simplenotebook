@@ -10,7 +10,8 @@
     "lint": "next lint",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "verify-config": "node scripts/verify-config.js"
+    "verify-config": "node scripts/verify-config.js",
+    "generate-config": "node scripts/generate-config.js"
   },
   "dependencies": {
     "next": "^14.2.30",
