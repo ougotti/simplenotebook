@@ -1,0 +1,10 @@
+{
+  "apiBaseUrl": "PLACEHOLDER_API_URL",
+  "cognitoDomain": "PLACEHOLDER_COGNITO_DOMAIN", 
+  "clientId": "PLACEHOLDER_CLIENT_ID",
+  "identityPoolId": "PLACEHOLDER_IDENTITY_POOL_ID",
+  "userPoolId": "PLACEHOLDER_USER_POOL_ID",
+  "region": "ap-northeast-1",
+  "notesBucket": "PLACEHOLDER_NOTES_BUCKET",
+  "notesPrefix": "prod/"
+}
