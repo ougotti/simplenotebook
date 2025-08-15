@@ -34,7 +34,7 @@ export class SimplenotebookStack extends cdk.Stack {
       cors: [
         {
           allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.PUT, s3.HttpMethods.DELETE],
-          allowedOrigins: ['https://ougotti.github.io'],
+          allowedOrigins: ['https://ougotti.github.io', 'http://localhost:3000'],
           allowedHeaders: ['*'],
           exposedHeaders: ['ETag'],
           maxAge: 300,
@@ -174,9 +174,10 @@ export class SimplenotebookStack extends cdk.Stack {
       restApiName: `simplenotebook-api-${environment}`,
       description: 'API for Simplenotebook app',
       defaultCorsPreflightOptions: {
-        allowOrigins: ['https://ougotti.github.io'],
+        allowOrigins: ['https://ougotti.github.io', 'http://localhost:3000'],
         allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowHeaders: ['Authorization', 'Content-Type'],
+        allowHeaders: ['Authorization', 'Content-Type', 'X-Requested-With'],
+        allowCredentials: true,
       },
     });
 
