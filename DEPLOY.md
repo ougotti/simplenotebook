@@ -8,6 +8,7 @@
    * OAuthクライアントID（Web）発行
 
      * リダイレクトURI：`https://<domain>.auth.ap-northeast-1.amazoncognito.com/oauth2/idpresponse`
+       ※ `<domain>` は、手順3で設定する Cognito ドメインプレフィックス（例: `notes-app-prod`）に置き換えてください。
    * Client ID/Secret を控える
 
 2. **AWS（Secrets Manager）**
