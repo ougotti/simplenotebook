@@ -81,9 +81,7 @@ export function useNotes() {
     }
   };
 
-  useEffect(() => {
-    fetchNotes();
-  }, []);
+  // Remove automatic fetching on mount - let the calling component decide when to fetch
 
   return {
     notes,

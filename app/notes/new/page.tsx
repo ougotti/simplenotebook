@@ -62,6 +62,13 @@ function NewNotePageContent() {
     window.localStorage.setItem('new-note-title', title)
   }, [content, title])
 
+  // Fetch notes when user is authenticated
+  useEffect(() => {
+    if (user) {
+      fetchNotes()
+    }
+  }, [user, fetchNotes])
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setIsSaving(true)
@@ -120,37 +127,15 @@ function NewNotePageContent() {
     try {
       await deleteNote(noteId)
       setMessage('ノートを削除しました。')
-    } catch (err) {
-      setMessage('削除に失敗しました。もう一度お試しください。')
-    }
-  }
-  function handleDeleteNote(noteId: string) {
-    setPendingDeleteNoteId(noteId)
-    setShowDeleteModal(true)
-  }
-
-  async function confirmDeleteNote() {
-    if (!pendingDeleteNoteId) return
-    setShowDeleteModal(false)
-    try {
-      await deleteNote(pendingDeleteNoteId)
-      setMessage('ノートを削除しました。')
-      // Optionally clear edit state if the deleted note was being edited
-      if (editingNote === pendingDeleteNoteId) {
+      // Clear edit state if the deleted note was being edited
+      if (editingNote === noteId) {
         setEditingNote(null)
         setTitle('')
         setContent('')
       }
     } catch (err) {
       setMessage('削除に失敗しました。もう一度お試しください。')
-    } finally {
-      setPendingDeleteNoteId(null)
     }
-  }
-
-  function cancelDeleteNote() {
-    setShowDeleteModal(false)
-    setPendingDeleteNoteId(null)
   }
   function handleCancelEdit() {
     setEditingNote(null)

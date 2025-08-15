@@ -34,6 +34,11 @@ class ApiClient {
       await this.initialize();
     }
 
+    // Check if the API is properly configured
+    if (this.baseUrl.includes('your-api-id') || this.baseUrl.includes('localhost') === false && this.baseUrl.includes('amazonaws.com') === false) {
+      throw new Error('API is not configured. Please set up your AWS API Gateway endpoint.');
+    }
+
     const url = `${this.baseUrl}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
@@ -41,23 +46,30 @@ class ApiClient {
       ...options.headers,
     };
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+      });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Unauthorized - please sign in again');
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Unauthorized - please sign in again');
+        }
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
       }
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-    }
 
-    if (response.status === 204) {
-      return {} as T;
-    }
+      if (response.status === 204) {
+        return {} as T;
+      }
 
-    return response.json();
+      return response.json();
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Network error: Unable to connect to the API server. Please check your internet connection.');
+      }
+      throw error;
+    }
   }
 
   async listNotes(): Promise<NotesListResponse> {
