@@ -51,7 +51,7 @@
      ```json
      {
        "apiBaseUrl": "https://xxxx.execute-api.ap-northeast-1.amazonaws.com/prod",
-       "cognitoDomain": "https://<domain>.auth.ap-northeast-1.amazoncognito.com",
+       "cognitoDomain": "https://<domainPrefix>.auth.ap-northeast-1.amazoncognito.com",
        "clientId": "xxxx"
      }
      ```
