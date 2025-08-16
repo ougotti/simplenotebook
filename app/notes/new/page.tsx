@@ -3,6 +3,7 @@ import { useState, FormEvent, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '../../../hooks/useAuth'
 import { useNotes } from '../../../hooks/useNotes'
+import { getUserDisplayName } from '../../../utils/userDisplay'
 
 function NewNotePageContent() {
   const [content, setContent] = useState('')
@@ -175,9 +176,16 @@ function NewNotePageContent() {
           )}
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-600">
-            {user?.signInDetails?.loginId || 'User'}
-          </span>
+          <div className="text-right">
+            <div className="text-sm font-medium text-gray-800">
+              {getUserDisplayName(user)}
+            </div>
+            {user?.signInDetails?.loginId && getUserDisplayName(user) !== user.signInDetails.loginId && (
+              <div className="text-xs text-gray-500">
+                {user.signInDetails.loginId}
+              </div>
+            )}
+          </div>
           <button
             onClick={signOut}
             className="text-sm text-blue-500 hover:text-blue-700"

@@ -23,6 +23,11 @@ const LOCAL_USER: AuthUser = {
   signInDetails: {
     loginId: 'local@example.com',
   },
+  // Add mock Google OAuth attributes for testing
+  given_name: 'ローカル',
+  family_name: 'ユーザー', 
+  name: 'ローカル ユーザー',
+  email: 'local@example.com',
 } as AuthUser;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
