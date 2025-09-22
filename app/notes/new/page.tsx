@@ -1,9 +1,10 @@
 'use client'
 import { useState, FormEvent, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '../../../hooks/useAuth'
 import { useNotes } from '../../../hooks/useNotes'
 import { getUserDisplayName } from '../../../utils/userDisplay'
+import UserDisplay from '../../../components/UserDisplay'
 
 function NewNotePageContent() {
   const [content, setContent] = useState('')
@@ -16,6 +17,7 @@ function NewNotePageContent() {
   const [pendingDeleteNoteId, setPendingDeleteNoteId] = useState<string | null>(null)
   
   const searchParams = useSearchParams()
+  const router = useRouter()
   const { user, signOut, isLocal } = useAuth()
   const { notes, loading, error, createNote, updateNote, deleteNote, getNote, fetchNotes } = useNotes()
 
@@ -177,21 +179,27 @@ function NewNotePageContent() {
         </div>
         <div className="flex items-center space-x-4">
           <div className="text-right">
-            <div className="text-sm font-medium text-gray-800">
-              {getUserDisplayName(user)}
-            </div>
-            {user?.signInDetails?.loginId && getUserDisplayName(user) !== user.signInDetails.loginId && (
+            <UserDisplay />
+            {user?.signInDetails?.loginId && (
               <div className="text-xs text-gray-500">
                 {user.signInDetails.loginId}
               </div>
             )}
           </div>
-          <button
-            onClick={signOut}
-            className="text-sm text-blue-500 hover:text-blue-700"
-          >
-            サインアウト
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => router.push('/settings')}
+              className="text-sm text-gray-600 hover:text-gray-800 underline"
+            >
+              設定
+            </button>
+            <button
+              onClick={signOut}
+              className="text-sm text-blue-500 hover:text-blue-700"
+            >
+              サインアウト
+            </button>
+          </div>
         </div>
       </div>
 

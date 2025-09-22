@@ -1,13 +1,19 @@
 'use client';
 
 import { useAuth } from '../hooks/useAuth';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
+import { apiClient } from '../lib/api';
+import SettingsModal from './SettingsModal';
 
 function AuthGuardContent({ children }: { children: React.ReactNode }) {
   const { user, loading, signIn } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [isProcessingCallback, setIsProcessingCallback] = useState(false);
+  const [isCheckingSettings, setIsCheckingSettings] = useState(false);
+  const [showInitialSettings, setShowInitialSettings] = useState(false);
+  const [hasCheckedSettings, setHasCheckedSettings] = useState(false);
 
   // Check if this is an OAuth callback
   useEffect(() => {
@@ -33,13 +39,70 @@ function AuthGuardContent({ children }: { children: React.ReactNode }) {
     }
   }, [searchParams]);
 
-  if (loading || isProcessingCallback) {
+  // Check user settings after authentication
+  useEffect(() => {
+    if (!user || loading || isProcessingCallback || hasCheckedSettings) return;
+
+    let isMounted = true;
+
+    async function checkUserSettings() {
+      setIsCheckingSettings(true);
+      try {
+        await apiClient.getUserSettings();
+        // 設定が存在する場合は何もしない
+        if (isMounted) {
+          setHasCheckedSettings(true);
+        }
+      } catch (error: any) {
+        if (isMounted) {
+          // 404エラー（設定未作成）の場合は初回設定モーダルを表示
+          if (error.message?.includes('API request failed: 404') || error.message?.includes('Settings not found')) {
+            console.log('設定が見つかりません。初回設定モーダルを表示します。');
+            setShowInitialSettings(true);
+          } else {
+            console.error('設定確認エラー:', error);
+          }
+          setHasCheckedSettings(true);
+        }
+      } finally {
+        if (isMounted) {
+          setIsCheckingSettings(false);
+        }
+      }
+    }
+
+    checkUserSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, loading, isProcessingCallback, hasCheckedSettings]);
+
+  const handleSaveInitialSettings = async (settings: { displayName: string }) => {
+    try {
+      await apiClient.updateUserSettings(settings);
+      console.log('初回設定が正常に保存されました');
+      setShowInitialSettings(false);
+      
+      // トップページへ遷移
+      router.push('/notes/new');
+    } catch (error) {
+      console.error('初回設定保存エラー:', error);
+      throw error; // モーダルでエラーハンドリング
+    }
+  };
+
+  if (loading || isProcessingCallback || isCheckingSettings) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">
-            {isProcessingCallback ? 'Processing OAuth callback...' : 'Loading...'}
+            {isProcessingCallback 
+              ? 'Processing OAuth callback...' 
+              : isCheckingSettings
+              ? '設定を確認しています...'
+              : 'Loading...'}
           </p>
         </div>
       </div>
@@ -71,7 +134,17 @@ function AuthGuardContent({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <SettingsModal
+        isOpen={showInitialSettings}
+        onSave={handleSaveInitialSettings}
+        isFirstTime={true}
+        title="初回設定"
+      />
+    </>
+  );
 }
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
