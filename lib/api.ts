@@ -1,5 +1,6 @@
 import { getConfig, isLocalMode } from './config';
 import { LocalApiClient } from './localApi';
+import { UserSettings, UserSettingsResponse, UpdateUserSettingsRequest } from '../types/userSettings';
 
 export interface Note {
   id: string;
@@ -124,6 +125,23 @@ class ApiClient {
     }
     await this.request(`/notes/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+    });
+  }
+
+  async getUserSettings(): Promise<UserSettingsResponse> {
+    if (await this.getLocalMode()) {
+      return this.localClient.getUserSettings();
+    }
+    return this.request<UserSettingsResponse>('/user/settings');
+  }
+
+  async updateUserSettings(settings: UpdateUserSettingsRequest): Promise<UserSettingsResponse> {
+    if (await this.getLocalMode()) {
+      return this.localClient.updateUserSettings(settings);
+    }
+    return this.request<UserSettingsResponse>('/user/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
     });
   }
 

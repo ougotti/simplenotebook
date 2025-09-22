@@ -3,6 +3,8 @@
  * 適切なフォールバック処理でユーザー名を取得
  */
 
+import { UserSettings } from '../types/userSettings';
+
 interface UserWithAttributes {
   username?: string;
   signInDetails?: {
@@ -19,11 +21,16 @@ interface UserWithAttributes {
 
 /**
  * ユーザーオブジェクトから表示用の名前を取得
- * 優先順位: name > given_name family_name > username > loginId > 'User'
+ * 優先順位: カスタム表示名(settings) > name > given_name family_name > username > loginId > 'User'
  */
-export function getUserDisplayName(user: UserWithAttributes | null): string {
+export function getUserDisplayName(user: UserWithAttributes | null, userSettings?: UserSettings | null): string {
   if (!user) {
     return 'User';
+  }
+
+  // 0. カスタム表示名が設定されている場合は最優先
+  if (userSettings?.displayName && userSettings.displayName.trim()) {
+    return userSettings.displayName.trim();
   }
 
   // 1. 'name' プロパティがある場合（Google OAuth）

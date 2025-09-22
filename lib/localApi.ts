@@ -1,7 +1,9 @@
 import { Note, NotesListResponse, NoteResponse } from './api';
+import { UserSettings, UserSettingsResponse, UpdateUserSettingsRequest } from '../types/userSettings';
 
 const STORAGE_PREFIX = 'simplenotebook_';
 const NOTES_KEY = `${STORAGE_PREFIX}notes`;
+const USER_SETTINGS_KEY = `${STORAGE_PREFIX}user_settings`;
 
 function generateNoteId(): string {
   return `note-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
@@ -18,6 +20,19 @@ function getStoredNotes(): Note[] {
 
 function setStoredNotes(notes: Note[]): void {
   localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+}
+
+function getStoredUserSettings(): UserSettings | null {
+  try {
+    const stored = localStorage.getItem(USER_SETTINGS_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredUserSettings(settings: UserSettings): void {
+  localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(settings));
 }
 
 export class LocalApiClient {
@@ -88,5 +103,34 @@ export class LocalApiClient {
     const notes = getStoredNotes();
     const filteredNotes = notes.filter(n => n.id !== id);
     setStoredNotes(filteredNotes);
+  }
+
+  async getUserSettings(): Promise<UserSettingsResponse> {
+    const stored = getStoredUserSettings();
+    
+    // デフォルト設定を返す（初回アクセス時）
+    if (!stored) {
+      const defaultSettings: UserSettings = {
+        updatedAt: new Date().toISOString(),
+      };
+      return { settings: defaultSettings };
+    }
+    
+    return { settings: stored };
+  }
+
+  async updateUserSettings(updateRequest: UpdateUserSettingsRequest): Promise<UserSettingsResponse> {
+    const current = getStoredUserSettings();
+    
+    const updatedSettings: UserSettings = {
+      ...current,
+      displayName: updateRequest.displayName !== undefined ? updateRequest.displayName : current?.displayName,
+      preferences: updateRequest.preferences !== undefined ? updateRequest.preferences : current?.preferences,
+      updatedAt: new Date().toISOString(),
+    };
+    
+    setStoredUserSettings(updatedSettings);
+    
+    return { settings: updatedSettings };
   }
 }
