@@ -14,6 +14,12 @@ interface Note {
   updatedAt: string;
 }
 
+interface UserSettings {
+  displayName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     // Extract user ID from Cognito JWT token
@@ -39,6 +45,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     switch (`${httpMethod} ${resource}`) {
       case 'OPTIONS /notes':
       case 'OPTIONS /notes/{noteId}':
+      case 'OPTIONS /users/me/settings':
         return {
           statusCode: 204,
           headers: {
@@ -63,6 +70,13 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       
       case 'DELETE /notes/{noteId}':
         return await deleteNote(userPrefix, event.pathParameters?.noteId);
+      
+      case 'GET /users/me/settings':
+        return await getUserSettings(sanitizedUserId);
+      
+      case 'PUT /users/me/settings':
+        return await updateUserSettings(sanitizedUserId, JSON.parse(event.body || '{}'));
+      
       
       default:
         return {
@@ -317,4 +331,173 @@ async function deleteNote(userPrefix: string, noteId?: string): Promise<APIGatew
 
 function generateNoteId(): string {
   return `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * 表示名のバリデーション
+ */
+function validateDisplayName(input: string): { isValid: boolean; displayName?: string; error?: string } {
+  if (typeof input !== 'string') {
+    return { isValid: false, error: '表示名は文字列である必要があります' };
+  }
+
+  // 前後空白をトリミング
+  let displayName = input.trim();
+
+  // NFC正規化
+  displayName = displayName.normalize('NFC');
+
+  // 空文字チェック
+  if (displayName.length === 0) {
+    return { isValid: false, error: '表示名を入力してください' };
+  }
+
+  // 制御文字とゼロ幅文字を除外
+  const controlCharRegex = /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\uFFF9-\uFFFB]/g;
+  displayName = displayName.replace(controlCharRegex, '');
+
+  // 再度空文字チェック（制御文字除去後）
+  if (displayName.length === 0) {
+    return { isValid: false, error: '有効な文字を含む表示名を入力してください' };
+  }
+
+  // 最大100文字チェック（正規化・制御文字除去後）
+  if (displayName.length > 100) {
+    return { isValid: false, error: '表示名は100文字以内で入力してください' };
+  }
+
+  return { isValid: true, displayName };
+}
+
+/**
+ * ユーザー設定を取得
+ */
+async function getUserSettings(userId: string): Promise<APIGatewayProxyResult> {
+  try {
+    const command = new GetObjectCommand({
+      Bucket: NOTES_BUCKET,
+      Key: `${NOTES_PREFIX}users/${userId}/settings.json`,
+    });
+
+    const response = await s3Client.send(command);
+    const settingsContent = await response.Body!.transformToString();
+    const settings = JSON.parse(settingsContent);
+
+    console.log(`Settings retrieved successfully for user: ${userId}`);
+    
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+      },
+      body: JSON.stringify(settings),
+    };
+  } catch (error: any) {
+    if (error.name === 'NoSuchKey') {
+      console.log(`Settings not found for user: ${userId}`);
+      return {
+        statusCode: 404,
+        headers: {
+          'Access-Control-Allow-Origin': 'https://ougotti.github.io',
+          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+        },
+        body: JSON.stringify({ error: 'Settings not found' }),
+      };
+    }
+
+    console.error('Error getting settings:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+      },
+      body: JSON.stringify({ error: 'Failed to get settings' }),
+    };
+  }
+}
+
+/**
+ * ユーザー設定を更新
+ */
+async function updateUserSettings(userId: string, settingsData: Partial<UserSettings>): Promise<APIGatewayProxyResult> {
+  try {
+    if (!settingsData.displayName) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Access-Control-Allow-Origin': 'https://ougotti.github.io',
+          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+        },
+        body: JSON.stringify({ error: '表示名は必須です' }),
+      };
+    }
+
+    const validation = validateDisplayName(settingsData.displayName);
+    if (!validation.isValid) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Access-Control-Allow-Origin': 'https://ougotti.github.io',
+          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+        },
+        body: JSON.stringify({ error: validation.error }),
+      };
+    }
+
+    // 既存の設定を取得（createdAtを保持するため）
+    let existingSettings: UserSettings | null = null;
+    try {
+      const getCommand = new GetObjectCommand({
+        Bucket: NOTES_BUCKET,
+        Key: `${NOTES_PREFIX}users/${userId}/settings.json`,
+      });
+      const response = await s3Client.send(getCommand);
+      const content = await response.Body!.transformToString();
+      existingSettings = JSON.parse(content);
+    } catch (error: any) {
+      if (error.name !== 'NoSuchKey') {
+        console.error('Error getting existing settings:', error);
+      }
+    }
+
+    const now = new Date().toISOString();
+    const settings: UserSettings = {
+      displayName: validation.displayName!,
+      createdAt: existingSettings?.createdAt || now,
+      updatedAt: now,
+    };
+
+    const command = new PutObjectCommand({
+      Bucket: NOTES_BUCKET,
+      Key: `${NOTES_PREFIX}users/${userId}/settings.json`,
+      Body: JSON.stringify(settings),
+      ContentType: 'application/json',
+      ServerSideEncryption: 'AES256',
+    });
+
+    await s3Client.send(command);
+
+    console.log(`Settings updated successfully for user: ${userId}`);
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+      },
+      body: JSON.stringify(settings),
+    };
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+      },
+      body: JSON.stringify({ error: 'Failed to update settings' }),
+    };
+  }
 }

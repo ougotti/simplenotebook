@@ -189,11 +189,16 @@ export class SimplenotebookStack extends cdk.Stack {
     // API Resources
     const notesResource = api.root.addResource('notes');
     const noteResource = notesResource.addResource('{noteId}');
+    
+    // Users API Resources
+    const usersResource = api.root.addResource('users');
+    const meResource = usersResource.addResource('me');
+    const settingsResource = meResource.addResource('settings');
 
     // Lambda integration
     const lambdaIntegration = new apigateway.LambdaIntegration(notesFunction);
 
-    // API Methods
+    // Notes API Methods
     notesResource.addMethod('GET', lambdaIntegration, {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
@@ -215,6 +220,17 @@ export class SimplenotebookStack extends cdk.Stack {
     });
 
     noteResource.addMethod('DELETE', lambdaIntegration, {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    // Settings API Methods
+    settingsResource.addMethod('GET', lambdaIntegration, {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    settingsResource.addMethod('PUT', lambdaIntegration, {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });

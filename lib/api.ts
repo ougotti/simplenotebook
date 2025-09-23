@@ -9,6 +9,12 @@ export interface Note {
   updatedAt: string;
 }
 
+export interface UserSettings {
+  displayName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface NotesListResponse {
   notes: Omit<Note, 'content'>[];
 }
@@ -124,6 +130,48 @@ class ApiClient {
     }
     await this.request(`/notes/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+    });
+  }
+
+  async getUserSettings(): Promise<UserSettings> {
+    if (await this.getLocalMode()) {
+      // ローカルモード用の設定取得
+      const settings = localStorage.getItem('userSettings');
+      if (settings) {
+        return JSON.parse(settings);
+      }
+      // 設定が存在しない場合は404エラーを模擬
+      throw new Error('Settings not found');
+    }
+    
+    try {
+      return await this.request<UserSettings>('/users/me/settings');
+    } catch (error: any) {
+      // API呼び出しエラーをそのまま再スロー
+      throw error;
+    }
+  }
+
+  async updateUserSettings(settings: Partial<UserSettings>): Promise<UserSettings> {
+    if (await this.getLocalMode()) {
+      // ローカルモード用の設定更新
+      const now = new Date().toISOString();
+      const existingSettings = localStorage.getItem('userSettings');
+      const existing = existingSettings ? JSON.parse(existingSettings) : null;
+      
+      const updatedSettings: UserSettings = {
+        displayName: settings.displayName || '',
+        createdAt: existing?.createdAt || now,
+        updatedAt: now,
+      };
+      
+      localStorage.setItem('userSettings', JSON.stringify(updatedSettings));
+      return updatedSettings;
+    }
+    
+    return this.request<UserSettings>('/users/me/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
     });
   }
 
