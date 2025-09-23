@@ -219,20 +219,6 @@ export class SimplenotebookStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
-    // User Settings API Endpoints
-    const userResource = api.root.addResource('user');
-    const settingsResource = userResource.addResource('settings');
-
-    settingsResource.addMethod('GET', lambdaIntegration, {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-
-    settingsResource.addMethod('PUT', lambdaIntegration, {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-
     // IAM Role for GitHub Actions OIDC
     const githubOidcRole = new iam.Role(this, 'GitHubActionsCdkDeployRole', {
       roleName: 'GitHubActionsCdkDeployRole',

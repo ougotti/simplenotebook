@@ -3,7 +3,6 @@ import { useState, FormEvent, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '../../../hooks/useAuth'
 import { useNotes } from '../../../hooks/useNotes'
-import { useUserSettings } from '../../../hooks/useUserSettings'
 import { getUserDisplayName } from '../../../utils/userDisplay'
 
 function NewNotePageContent() {
@@ -19,7 +18,6 @@ function NewNotePageContent() {
   const searchParams = useSearchParams()
   const { user, signOut, isLocal } = useAuth()
   const { notes, loading, error, createNote, updateNote, deleteNote, getNote, fetchNotes } = useNotes()
-  const { settings: userSettings } = useUserSettings()
 
   // Handle OAuth callback
   useEffect(() => {
@@ -180,28 +178,20 @@ function NewNotePageContent() {
         <div className="flex items-center space-x-4">
           <div className="text-right">
             <div className="text-sm font-medium text-gray-800">
-              {getUserDisplayName(user, userSettings)}
+              {getUserDisplayName(user)}
             </div>
-            {user?.signInDetails?.loginId && getUserDisplayName(user, userSettings) !== user.signInDetails.loginId && (
+            {user?.signInDetails?.loginId && getUserDisplayName(user) !== user.signInDetails.loginId && (
               <div className="text-xs text-gray-500">
                 {user.signInDetails.loginId}
               </div>
             )}
           </div>
-          <div className="flex space-x-2">
-            <a
-              href="/simplenotebook/settings"
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
-              設定
-            </a>
-            <button
-              onClick={signOut}
-              className="text-sm text-blue-500 hover:text-blue-700"
-            >
-              サインアウト
-            </button>
-          </div>
+          <button
+            onClick={signOut}
+            className="text-sm text-blue-500 hover:text-blue-700"
+          >
+            サインアウト
+          </button>
         </div>
       </div>
 

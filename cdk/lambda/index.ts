@@ -14,15 +14,6 @@ interface Note {
   updatedAt: string;
 }
 
-interface UserSettings {
-  displayName?: string;
-  preferences?: {
-    theme?: 'light' | 'dark' | 'system';
-    language?: string;
-  };
-  updatedAt: string;
-}
-
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     // Extract user ID from Cognito JWT token
@@ -48,7 +39,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     switch (`${httpMethod} ${resource}`) {
       case 'OPTIONS /notes':
       case 'OPTIONS /notes/{noteId}':
-      case 'OPTIONS /user/settings':
         return {
           statusCode: 204,
           headers: {
@@ -73,12 +63,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       
       case 'DELETE /notes/{noteId}':
         return await deleteNote(userPrefix, event.pathParameters?.noteId);
-      
-      case 'GET /user/settings':
-        return await getUserSettings(sanitizedUserId);
-      
-      case 'PUT /user/settings':
-        return await updateUserSettings(sanitizedUserId, JSON.parse(event.body || '{}'));
       
       default:
         return {
@@ -333,107 +317,4 @@ async function deleteNote(userPrefix: string, noteId?: string): Promise<APIGatew
 
 function generateNoteId(): string {
   return `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-async function getUserSettings(userId: string): Promise<APIGatewayProxyResult> {
-  const settingsKey = `${NOTES_PREFIX}${userId}/settings.json`;
-
-  try {
-    const command = new GetObjectCommand({
-      Bucket: NOTES_BUCKET,
-      Key: settingsKey,
-    });
-
-    const response = await s3Client.send(command);
-    const settingsContent = await response.Body!.transformToString();
-    const settings = JSON.parse(settingsContent);
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify({ settings }),
-    };
-  } catch (error: any) {
-    if (error.name === 'NoSuchKey') {
-      // Return default settings if none exist
-      const defaultSettings: UserSettings = {
-        updatedAt: new Date().toISOString(),
-      };
-      return {
-        statusCode: 200,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-        },
-        body: JSON.stringify({ settings: defaultSettings }),
-      };
-    }
-    throw error;
-  }
-}
-
-async function updateUserSettings(userId: string, updateData: Partial<UserSettings>): Promise<APIGatewayProxyResult> {
-  const settingsKey = `${NOTES_PREFIX}${userId}/settings.json`;
-
-  try {
-    // Get existing settings
-    let existingSettings: UserSettings = {
-      updatedAt: new Date().toISOString(),
-    };
-
-    try {
-      const getCommand = new GetObjectCommand({
-        Bucket: NOTES_BUCKET,
-        Key: settingsKey,
-      });
-      const response = await s3Client.send(getCommand);
-      const settingsContent = await response.Body!.transformToString();
-      existingSettings = JSON.parse(settingsContent);
-    } catch (error: any) {
-      if (error.name !== 'NoSuchKey') {
-        throw error;
-      }
-      // If settings don't exist, continue with default
-    }
-
-    // Update settings
-    const updatedSettings: UserSettings = {
-      ...existingSettings,
-      displayName: updateData.displayName !== undefined ? updateData.displayName : existingSettings.displayName,
-      preferences: updateData.preferences !== undefined ? updateData.preferences : existingSettings.preferences,
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Save updated settings
-    const putCommand = new PutObjectCommand({
-      Bucket: NOTES_BUCKET,
-      Key: settingsKey,
-      Body: JSON.stringify(updatedSettings),
-      ContentType: 'application/json',
-    });
-
-    await s3Client.send(putCommand);
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify({ settings: updatedSettings }),
-    };
-  } catch (error) {
-    console.error('Error updating user settings:', error);
-    return {
-      statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify({ error: 'Failed to update settings' }),
-    };
-  }
 }
