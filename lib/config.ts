@@ -26,3 +26,15 @@ export async function getConfig(): Promise<AppConfig> {
   }
   return config!;
 }
+
+export function isLocalMode(config?: AppConfig): boolean {
+  if (!config) return true;
+  
+  // Check if config contains placeholder values indicating local development
+  return config.apiBaseUrl.includes('your-api-id') ||
+         config.apiBaseUrl.includes('PLACEHOLDER_API_URL') ||
+         config.cognitoDomain.includes('your-domain') ||
+         config.cognitoDomain.includes('PLACEHOLDER_COGNITO_DOMAIN') ||
+         config.clientId.includes('your-client-id') ||
+         config.clientId.includes('PLACEHOLDER_CLIENT_ID');
+}
