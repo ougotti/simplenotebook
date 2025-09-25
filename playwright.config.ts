@@ -38,6 +38,8 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
+        // Use system Chrome instead of downloading Playwright's Chromium
+        channel: 'chrome',
         // Use system fonts to ensure Japanese characters render correctly
         contextOptions: {
           locale: 'ja-JP',
@@ -45,25 +47,25 @@ export default defineConfig({
       },
     },
 
-    {
-      name: 'firefox',
-      use: {
-        ...devices['Desktop Firefox'],
-        contextOptions: {
-          locale: 'ja-JP',
-        },
-      },
-    },
+    // {
+    //   name: 'firefox',
+    //   use: {
+    //     ...devices['Desktop Firefox'],
+    //     contextOptions: {
+    //       locale: 'ja-JP',
+    //     },
+    //   },
+    // },
 
-    {
-      name: 'webkit',
-      use: {
-        ...devices['Desktop Safari'],
-        contextOptions: {
-          locale: 'ja-JP',
-        },
-      },
-    },
+    // {
+    //   name: 'webkit',
+    //   use: {
+    //     ...devices['Desktop Safari'],
+    //     contextOptions: {
+    //       locale: 'ja-JP',
+    //     },
+    //   },
+    // },
 
     /* Test against mobile viewports. */
     // {
