@@ -190,6 +190,23 @@ jobs:
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
+      
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          CI: true
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+      
       - name: Build with Next.js
         run: ${{ steps.detect-package-manager.outputs.runner }} next build
       - name: Upload artifact
