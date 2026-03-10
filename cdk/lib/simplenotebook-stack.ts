@@ -157,7 +157,7 @@ export class SimplenotebookStack extends cdk.Stack {
 
     // Lambda function for notes API
     const notesFunction = new lambda.Function(this, 'NotesFunction', {
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('lambda'),
       environment: {

@@ -78,3 +78,33 @@
 * User Pool Client の **callback/logout URL** に Pages のURLを入れ忘れ
 * CORS：API/S3で `https://<user>.github.io` を許可していない
 * Secrets名/キー名の typo（`google/oauth`, `client_id`, `client_secret`）
+
+## Node.js バージョン管理
+
+### 現在の構成（2026-03-11 更新）
+
+| 対象 | バージョン |
+|---|---|
+| GitHub Actions（CI/CD） | Node.js 22 |
+| AWS Lambda ランタイム | `NODEJS_22_X` |
+| `@types/node` | `^22.0.0` |
+
+Node.js 22 は LTS（2027年4月まで）。
+
+### 移行履歴
+
+| 日付 | 変更内容 |
+|---|---|
+| 2026-03-11 | Node 18（Lambda）・Node 20（CI）→ Node 22 へ移行 |
+| 2026-03-11 | `eslint` を `8.38.0` → `^8.57.0` に更新（peer dependency解消） |
+| 2026-03-11 | `npm audit fix` により脆弱性を 30件 → 7件に削減 |
+
+### 残存脆弱性（保留中）
+
+残り 7件（high）は Next.js を v14 → v16 へアップグレードすることで解消できるが、破壊的変更が伴うため保留中。
+
+| 脆弱性 | 影響パッケージ | 対応方針 |
+|---|---|---|
+| `glob` CLI command injection | `eslint-config-next@14.x` | Next.js 16 アップグレード時に解消 |
+| `minimatch` ReDoS (3件) | `@typescript-eslint`（eslint-config-next 内） | 同上 |
+| `next` DoS (2件) | `next@14.x` | Next.js 16 アップグレード時に解消 |
