@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { seedUserSettings } from './helpers';
 
 test.describe('Simplenotebook - Fixed Selectors', () => {
   const DEV_BASE_URL = 'http://localhost:3001/simplenotebook';
-  
+
   test.beforeEach(async ({ page }) => {
     page.setDefaultTimeout(15000);
+    await seedUserSettings(page);
   });
 
   test('should display the application title', async ({ page }) => {
@@ -28,7 +30,7 @@ test.describe('Simplenotebook - Fixed Selectors', () => {
     await expect(page.locator('textarea[placeholder*="Markdownを書いてください"]')).toBeVisible();
     
     // Use more specific selector for the main note form submit button
-    const mainFormSubmitButton = page.locator('form').filter({ hasText: 'ノートのタイトル' }).locator('button[type="submit"]');
+    const mainFormSubmitButton = page.locator('form').filter({ has: page.locator('input[placeholder*="ノートのタイトル"]') }).locator('button[type="submit"]');
     await expect(mainFormSubmitButton).toBeVisible();
     await expect(mainFormSubmitButton).toContainText('保存');
   });
@@ -47,7 +49,7 @@ test.describe('Simplenotebook - Fixed Selectors', () => {
     await page.fill('textarea[placeholder*="Markdownを書いてください"]', testContent);
     
     // Click the main form submit button (not the settings form)
-    const mainFormSubmitButton = page.locator('form').filter({ hasText: 'ノートのタイトル' }).locator('button[type="submit"]');
+    const mainFormSubmitButton = page.locator('form').filter({ has: page.locator('input[placeholder*="ノートのタイトル"]') }).locator('button[type="submit"]');
     await mainFormSubmitButton.click();
     
     // Wait for success message (be flexible with the exact text)
@@ -164,7 +166,7 @@ console.log('日本語コメント');
     await page.setViewportSize({ width: 1200, height: 800 });
     
     // Check that grid layout exists
-    const gridContainer = page.locator('.grid').filter({ hasText: 'ノートのタイトル' });
+    const gridContainer = page.locator('.grid').filter({ has: page.locator('input[placeholder*="ノートのタイトル"]') });
     await expect(gridContainer).toBeVisible();
     
     // Test mobile viewport

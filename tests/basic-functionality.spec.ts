@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { seedUserSettings } from './helpers';
 
 test.describe('Simplenotebook Basic Functionality', () => {
+  test.beforeEach(async ({ page }) => {
+    await seedUserSettings(page);
+  });
+
   test('should load the main page and redirect to /notes/new', async ({ page }) => {
     // Go to the root page and wait for network to be idle
     await page.goto('/', { waitUntil: 'networkidle' });
@@ -108,8 +113,8 @@ test.describe('Simplenotebook Basic Functionality', () => {
     await page.waitForSelector('h1', { timeout: 10000 });
     
     // Check for saved notes section
-    await expect(page.locator('h2')).toContainText('保存されたノート');
-    await expect(page.locator('button')).toContainText('更新');
+    await expect(page.locator('h2').filter({ hasText: '保存されたノート' })).toBeVisible();
+    await expect(page.locator('button').filter({ hasText: '更新' })).toBeVisible();
     
     // Initially should show "no notes" message (might take time to load)
     await expect(page.locator('text=まだノートがありません')).toBeVisible({ timeout: 10000 });
@@ -122,7 +127,7 @@ test.describe('Simplenotebook Basic Functionality', () => {
     await page.waitForSelector('h1', { timeout: 10000 });
     
     // Check for user display area and sign out button
-    await expect(page.locator('button')).toContainText('サインアウト');
-    await expect(page.locator('button')).toContainText('設定');
+    await expect(page.locator('button').filter({ hasText: 'サインアウト' })).toBeVisible();
+    await expect(page.locator('button').filter({ hasText: '設定' })).toBeVisible();
   });
 });

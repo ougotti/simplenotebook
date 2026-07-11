@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { seedUserSettings } from './helpers';
 
 test.describe('Simplenotebook - Final Working Tests', () => {
   const DEV_BASE_URL = 'http://localhost:3001/simplenotebook';
-  
+
   test.beforeEach(async ({ page }) => {
     page.setDefaultTimeout(15000);
+    await seedUserSettings(page);
   });
 
   test('アプリケーションタイトルが表示される', async ({ page }) => {
@@ -27,8 +29,9 @@ test.describe('Simplenotebook - Final Working Tests', () => {
     await expect(page.locator('input[placeholder*="ノートのタイトル"]')).toBeVisible();
     await expect(page.locator('textarea[placeholder*="Markdownを書いてください"]')).toBeVisible();
     
-    // Just check that submit buttons exist (don't be strict about which one)
-    await expect(page.locator('button[type="submit"]')).toHaveCount(2); // One for main form, one for settings
+    // The note form has exactly one submit button
+    // (the first-time settings modal is suppressed by seedUserSettings)
+    await expect(page.locator('button[type="submit"]')).toHaveCount(1);
   });
 
   test('LocalStorageでコンテンツが永続化される', async ({ page }) => {

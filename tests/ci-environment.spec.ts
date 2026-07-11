@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { seedUserSettings } from './helpers';
 
 test.describe('Simplenotebook - CI Environment', () => {
   const baseURL = process.env.CI ? 'http://localhost:3000' : 'http://localhost:3001/simplenotebook';
-  
+
   test.beforeEach(async ({ page }) => {
     page.setDefaultTimeout(15000);
+    await seedUserSettings(page);
   });
 
   test('アプリケーションが正常に読み込まれる', async ({ page }) => {
