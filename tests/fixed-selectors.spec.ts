@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { seedUserSettings } from './helpers/seedUserSettings';
 
 test.describe('Simplenotebook - Fixed Selectors', () => {
   const DEV_BASE_URL = 'http://localhost:3001/simplenotebook';
-  
+
   test.beforeEach(async ({ page }) => {
     page.setDefaultTimeout(15000);
+    await seedUserSettings(page);
   });
 
   test('should display the application title', async ({ page }) => {

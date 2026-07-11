@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { seedUserSettings } from './helpers/seedUserSettings';
 
 test.describe('Simplenotebook Basic Functionality', () => {
+  test.beforeEach(async ({ page }) => {
+    await seedUserSettings(page);
+  });
+
   test('should load the main page and redirect to /notes/new', async ({ page }) => {
     // Go to the root page and wait for network to be idle
     await page.goto('/', { waitUntil: 'networkidle' });

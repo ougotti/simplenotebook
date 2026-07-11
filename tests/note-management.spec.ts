@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { seedUserSettings } from './helpers/seedUserSettings';
 
 test.describe('Note Management Features', () => {
   test.beforeEach(async ({ page }) => {
+    await seedUserSettings(page);
     await page.goto('/notes/new');
     // Wait for page to be fully loaded
     await expect(page.locator('h1')).toContainText('SimpleNotebook');
