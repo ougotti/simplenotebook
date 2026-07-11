@@ -3,7 +3,9 @@ import { test, expect } from '@playwright/test';
 test.describe('Initial Settings Modal', () => {
   test('should show the initial settings modal when userSettings is missing and save it', async ({ page }) => {
     // userSettings をシードしない状態でアクセスし、初回設定モーダルが表示されることを確認
-    await page.goto('/notes/new', { waitUntil: 'networkidle' });
+    // baseURL に basePath ('/simplenotebook') が含まれる場合、先頭 '/' の相対パスは
+    // basePath を無視してしまうため、basePath を含む絶対パスで遷移する
+    await page.goto('/simplenotebook/notes/new', { waitUntil: 'networkidle' });
 
     const modal = page.locator('div[role="dialog"][aria-modal="true"]');
     await expect(modal).toBeVisible({ timeout: 10000 });
