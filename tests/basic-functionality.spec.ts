@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { seedUserSettings } from './helpers/seedUserSettings';
+import { appPath } from './helpers/paths';
 
 test.describe('Simplenotebook Basic Functionality', () => {
   test.beforeEach(async ({ page }) => {
@@ -8,7 +9,7 @@ test.describe('Simplenotebook Basic Functionality', () => {
 
   test('should load the main page and redirect to /notes/new', async ({ page }) => {
     // Go to the root page and wait for network to be idle
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto(appPath('/'), { waitUntil: 'networkidle' });
     
     // Wait for the redirect to happen or navigate directly
     try {
@@ -16,7 +17,7 @@ test.describe('Simplenotebook Basic Functionality', () => {
     } catch (error) {
       // If redirect doesn't happen, navigate directly
       console.log('Redirect did not happen, navigating directly');
-      await page.goto('/notes/new', { waitUntil: 'networkidle' });
+      await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     }
     
     // Wait for main elements to be visible
@@ -30,7 +31,7 @@ test.describe('Simplenotebook Basic Functionality', () => {
   });
 
   test('should display the new note form', async ({ page }) => {
-    await page.goto('/notes/new', { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for the form to be rendered
     await page.waitForSelector('input[placeholder*="ノートのタイトル"]', { timeout: 10000 });
@@ -45,7 +46,7 @@ test.describe('Simplenotebook Basic Functionality', () => {
   });
 
   test('should show development mode message', async ({ page }) => {
-    await page.goto('/notes/new', { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for the page to be fully loaded
     await page.waitForSelector('h1', { timeout: 10000 });
@@ -61,7 +62,7 @@ test.describe('Simplenotebook Basic Functionality', () => {
   });
 
   test('should create and save a note locally', async ({ page }) => {
-    await page.goto('/notes/new', { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for form to be ready
     await page.waitForSelector('input[placeholder*="ノートのタイトル"]', { timeout: 10000 });
@@ -85,7 +86,7 @@ test.describe('Simplenotebook Basic Functionality', () => {
   });
 
   test('should persist content in localStorage', async ({ page }) => {
-    await page.goto('/notes/new', { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for form to be ready
     await page.waitForSelector('input[placeholder*="ノートのタイトル"]', { timeout: 10000 });
@@ -107,7 +108,7 @@ test.describe('Simplenotebook Basic Functionality', () => {
   });
 
   test('should display saved notes section', async ({ page }) => {
-    await page.goto('/notes/new', { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for page to be loaded
     await page.waitForSelector('h1', { timeout: 10000 });
@@ -121,7 +122,7 @@ test.describe('Simplenotebook Basic Functionality', () => {
   });
 
   test('should show user display and sign out button', async ({ page }) => {
-    await page.goto('/notes/new', { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for page to be loaded
     await page.waitForSelector('h1', { timeout: 10000 });

@@ -1,12 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { seedUserSettings } from './helpers/seedUserSettings';
+import { appPath } from './helpers/paths';
 
 test.describe('Note Management Features', () => {
   test.beforeEach(async ({ page }) => {
     await seedUserSettings(page);
-    // baseURL に basePath ('/simplenotebook') が含まれる場合、先頭 '/' の相対パスは
-    // basePath を無視してしまうため、basePath を含む絶対パスで遷移する
-    await page.goto('/simplenotebook/notes/new');
+    await page.goto(appPath('/notes/new'));
     // Wait for page to be fully loaded
     await expect(page.locator('h1')).toContainText('SimpleNotebook');
   });
@@ -106,7 +105,7 @@ console.log('日本語コメント');
 
   test('should handle page navigation correctly', async ({ page }) => {
     // Start at root
-    await page.goto('/');
+    await page.goto(appPath('/'));
     
     // Should redirect to notes/new
     await page.waitForURL('**/notes/new');
@@ -123,7 +122,7 @@ console.log('日本語コメント');
   test('should display proper responsive layout', async ({ page }) => {
     // Test different viewport sizes
     await page.setViewportSize({ width: 1200, height: 800 });
-    await page.goto('/notes/new');
+    await page.goto(appPath('/notes/new'));
     
     // Should show grid layout on large screens
     const gridContainer = page.locator('.grid.grid-cols-1.lg\\:grid-cols-2');

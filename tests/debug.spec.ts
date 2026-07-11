@@ -1,11 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { appPath } from './helpers/paths';
+import { seedUserSettings } from './helpers/seedUserSettings';
 
 test.describe('Debug Tests', () => {
   test('debug page loading and content', async ({ page }) => {
     console.log('Starting debug test...');
-    
+    await seedUserSettings(page);
+
     // Go to root page
-    await page.goto('/');
+    await page.goto(appPath('/'));
     console.log('Navigated to root page');
     
     // Take screenshot of root page
@@ -23,7 +26,7 @@ test.describe('Debug Tests', () => {
     await page.screenshot({ path: 'debug-after-wait.png' });
     
     // Try to navigate directly to /notes/new
-    await page.goto('/notes/new');
+    await page.goto(appPath('/notes/new'));
     console.log('Navigated directly to /notes/new');
     console.log('Final URL:', page.url());
     
