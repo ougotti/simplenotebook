@@ -1,16 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { seedUserSettings } from './helpers/seedUserSettings';
+import { appPath } from './helpers/paths';
 
 test.describe('Simplenotebook - Fixed Selectors', () => {
-  const DEV_BASE_URL = 'http://localhost:3001/simplenotebook';
-
   test.beforeEach(async ({ page }) => {
     page.setDefaultTimeout(15000);
     await seedUserSettings(page);
   });
 
   test('should display the application title', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for React app to hydrate
     await page.waitForSelector('h1', { timeout: 15000 });
@@ -20,7 +19,7 @@ test.describe('Simplenotebook - Fixed Selectors', () => {
   });
 
   test('should display the new note form', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for the form to be rendered
     await page.waitForSelector('input[placeholder*="ノートのタイトル"]', { timeout: 15000 });
@@ -36,7 +35,7 @@ test.describe('Simplenotebook - Fixed Selectors', () => {
   });
 
   test('should create and save a note locally', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for form to be ready
     await page.waitForSelector('input[placeholder*="ノートのタイトル"]', { timeout: 15000 });
@@ -62,7 +61,7 @@ test.describe('Simplenotebook - Fixed Selectors', () => {
   });
 
   test('should persist content in localStorage', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for form to be ready
     await page.waitForSelector('input[placeholder*="ノートのタイトル"]', { timeout: 15000 });
@@ -84,7 +83,7 @@ test.describe('Simplenotebook - Fixed Selectors', () => {
   });
 
   test('should display saved notes section', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for page to be loaded
     await page.waitForSelector('h1', { timeout: 15000 });
@@ -99,7 +98,7 @@ test.describe('Simplenotebook - Fixed Selectors', () => {
   });
 
   test('should show user interface buttons', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for page to be loaded
     await page.waitForSelector('h1', { timeout: 15000 });
@@ -111,7 +110,7 @@ test.describe('Simplenotebook - Fixed Selectors', () => {
   });
 
   test('should show development mode indicator', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for the page to be fully loaded
     await page.waitForSelector('h1', { timeout: 15000 });
@@ -127,7 +126,7 @@ test.describe('Simplenotebook - Fixed Selectors', () => {
   });
 
   test('should handle Japanese characters correctly', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for form to be ready
     await page.waitForSelector('input[placeholder*="ノートのタイトル"]', { timeout: 15000 });
@@ -157,7 +156,7 @@ console.log('日本語コメント');
   });
 
   test('should display proper responsive layout', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for page to be loaded
     await page.waitForSelector('h1', { timeout: 15000 });

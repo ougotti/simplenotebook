@@ -1,14 +1,15 @@
 import { test, expect } from '@playwright/test';
+import { appPath } from './helpers/paths';
+import { seedUserSettings } from './helpers/seedUserSettings';
 
 test.describe('Simplenotebook - Final Working Tests', () => {
-  const DEV_BASE_URL = 'http://localhost:3001/simplenotebook';
-  
   test.beforeEach(async ({ page }) => {
     page.setDefaultTimeout(15000);
+    await seedUserSettings(page);
   });
 
   test('アプリケーションタイトルが表示される', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for React app to hydrate
     await page.waitForSelector('h1', { timeout: 15000 });
@@ -18,7 +19,7 @@ test.describe('Simplenotebook - Final Working Tests', () => {
   });
 
   test('ノート作成フォームが表示される', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for the form to be rendered
     await page.waitForSelector('input[placeholder*="ノートのタイトル"]', { timeout: 15000 });
@@ -32,7 +33,7 @@ test.describe('Simplenotebook - Final Working Tests', () => {
   });
 
   test('LocalStorageでコンテンツが永続化される', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for form to be ready
     await page.waitForSelector('input[placeholder*="ノートのタイトル"]', { timeout: 15000 });
@@ -54,7 +55,7 @@ test.describe('Simplenotebook - Final Working Tests', () => {
   });
 
   test('保存されたノートセクションが表示される', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for page to be loaded
     await page.waitForSelector('h1', { timeout: 15000 });
@@ -70,7 +71,7 @@ test.describe('Simplenotebook - Final Working Tests', () => {
   });
 
   test('ユーザーインターフェースボタンが表示される', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for page to be loaded
     await page.waitForSelector('h1', { timeout: 15000 });
@@ -82,7 +83,7 @@ test.describe('Simplenotebook - Final Working Tests', () => {
   });
 
   test('日本語文字が正しく処理される', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for form to be ready
     await page.waitForSelector('input[placeholder*="ノートのタイトル"]', { timeout: 15000 });
@@ -112,7 +113,7 @@ console.log('日本語コメント');
   });
 
   test('レスポンシブデザインが機能する', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for page to be loaded
     await page.waitForSelector('h1', { timeout: 15000 });
@@ -134,7 +135,7 @@ console.log('日本語コメント');
   });
 
   test('開発モードが動作している', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for the page to be fully loaded
     await page.waitForSelector('h1', { timeout: 15000 });
@@ -149,11 +150,11 @@ console.log('日本語コメント');
 
   test('ページナビゲーションが機能する', async ({ page }) => {
     // Start at root URL
-    await page.goto(`${DEV_BASE_URL}/`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/'), { waitUntil: 'networkidle' });
     
     // Should redirect to notes/new automatically or we can navigate
     if (!page.url().includes('/notes/new')) {
-      await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+      await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     }
     
     // Wait for the main content
@@ -165,7 +166,7 @@ console.log('日本語コメント');
   });
 
   test('基本機能が正常に動作する統合テスト', async ({ page }) => {
-    await page.goto(`${DEV_BASE_URL}/notes/new`, { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     // Wait for form to be ready
     await page.waitForSelector('input[placeholder*="ノートのタイトル"]', { timeout: 15000 });

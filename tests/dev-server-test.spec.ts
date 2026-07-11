@@ -1,11 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { appPath } from './helpers/paths';
+import { seedUserSettings } from './helpers/seedUserSettings';
 
 test.describe('Development Server Test', () => {
   test('should load dev server page and take screenshot', async ({ page }) => {
-    console.log('Testing dev server at localhost:3001');
-    
+    console.log('Testing dev server');
+    await seedUserSettings(page);
+
     // Navigate to development server
-    await page.goto('http://localhost:3001/simplenotebook/notes/new', { waitUntil: 'networkidle' });
+    await page.goto(appPath('/notes/new'), { waitUntil: 'networkidle' });
     
     console.log('Current URL:', page.url());
     

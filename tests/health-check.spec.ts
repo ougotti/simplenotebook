@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { appPath } from './helpers/paths';
 
 test.describe('Health Check Tests', () => {
   test('should connect to preview server', async ({ page }) => {
     try {
       // Simple page load test
-      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await page.goto(appPath('/'), { waitUntil: 'domcontentloaded' });
       
       // Just check if page loads without errors
       const title = await page.title();

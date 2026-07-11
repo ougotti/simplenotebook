@@ -3,6 +3,7 @@
 # production
 /.next
 /out
+/.serve-root
 
 # CDK
 /cdk/node_modules
