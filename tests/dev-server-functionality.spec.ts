@@ -69,8 +69,8 @@ test.describe('Simplenotebook - Development Server', () => {
     const successMessage = page.locator('text=保存しました').or(page.locator('text=ノートを保存しました'));
     await expect(successMessage).toBeVisible({ timeout: 10000 });
     
-    // Check that form was cleared after successful save
-    await expect(page.locator('input[placeholder*="ノートのタイトル"]')).toHaveValue('', { timeout: 5000 });
+    // Check that form was reset after successful save (title defaults to current date/time)
+    await expect(page.locator('input[placeholder*="ノートのタイトル"]')).toHaveValue(/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}$/, { timeout: 5000 });
     await expect(page.locator('textarea[placeholder*="Markdownを書いてください"]')).toHaveValue('', { timeout: 5000 });
   });
 

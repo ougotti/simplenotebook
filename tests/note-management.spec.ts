@@ -73,13 +73,14 @@ console.log('日本語コメント');
     // Wait for success message
     await expect(page.locator('text=ノートを保存しました（ローカル保存）')).toBeVisible();
     
-    // Fields should be cleared
-    await expect(page.locator('input[placeholder*="ノートのタイトル"]')).toHaveValue('');
+    // Fields should be reset (title defaults to current date/time)
+    const defaultTitlePattern = /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}$/;
+    await expect(page.locator('input[placeholder*="ノートのタイトル"]')).toHaveValue(defaultTitlePattern);
     await expect(page.locator('textarea[placeholder*="Markdownを書いてください"]')).toHaveValue('');
-    
-    // Reload to check localStorage was cleared
+
+    // Reload to check the saved draft was cleared
     await page.reload();
-    await expect(page.locator('input[placeholder*="ノートのタイトル"]')).toHaveValue('');
+    await expect(page.locator('input[placeholder*="ノートのタイトル"]')).toHaveValue(defaultTitlePattern);
     await expect(page.locator('textarea[placeholder*="Markdownを書いてください"]')).toHaveValue('');
   });
 

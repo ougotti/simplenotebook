@@ -6,6 +6,12 @@ import { useNotes } from '../../../hooks/useNotes'
 import { getUserDisplayName } from '../../../utils/userDisplay'
 import UserDisplay from '../../../components/UserDisplay'
 
+function getDefaultNoteTitle(): string {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+}
+
 function NewNotePageContent() {
   const [content, setContent] = useState('')
   const [title, setTitle] = useState('')
@@ -15,6 +21,7 @@ function NewNotePageContent() {
   const [editingNote, setEditingNote] = useState<string | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [pendingDeleteNoteId, setPendingDeleteNoteId] = useState<string | null>(null)
+  const [isDraftLoaded, setIsDraftLoaded] = useState(false)
   
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -58,14 +65,19 @@ function NewNotePageContent() {
     }
     if (savedTitle) {
       setTitle(savedTitle)
+    } else {
+      setTitle(getDefaultNoteTitle())
     }
+    setIsDraftLoaded(true)
   }, [])
 
-  // Auto-save to localStorage
+  // Auto-save to localStorage (only after the saved draft has been restored,
+  // so the initial empty state doesn't overwrite it)
   useEffect(() => {
+    if (!isDraftLoaded) return
     window.localStorage.setItem('new-note-content', content)
     window.localStorage.setItem('new-note-title', title)
-  }, [content, title])
+  }, [content, title, isDraftLoaded])
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -76,14 +88,14 @@ function NewNotePageContent() {
       if (editingNote) {
         // Update existing note
         await updateNote(editingNote, {
-          title: title || 'Untitled',
+          title: title || getDefaultNoteTitle(),
           content,
         })
         setMessage('ノートを更新しました！')
       } else {
         // Create new note
         await createNote({
-          title: title || 'Untitled',
+          title: title || getDefaultNoteTitle(),
           content,
         })
         setMessage(isLocal ? 'ノートを保存しました（ローカル保存）' : 'ノートを保存しました！')
@@ -91,7 +103,7 @@ function NewNotePageContent() {
       
       // Clear form after successful save
       setContent('')
-      setTitle('')
+      setTitle(getDefaultNoteTitle())
       setEditingNote(null)
       window.localStorage.removeItem('new-note-content')
       window.localStorage.removeItem('new-note-title')
@@ -131,7 +143,7 @@ function NewNotePageContent() {
       // Optionally clear edit state if the deleted note was being edited
       if (editingNote === pendingDeleteNoteId) {
         setEditingNote(null)
-        setTitle('')
+        setTitle(getDefaultNoteTitle())
         setContent('')
       }
     } catch (err) {
@@ -148,7 +160,7 @@ function NewNotePageContent() {
 
   function handleCancelEdit() {
     setEditingNote(null)
-    setTitle('')
+    setTitle(getDefaultNoteTitle())
     setContent('')
     setMessage('')
     window.localStorage.removeItem('new-note-content')
