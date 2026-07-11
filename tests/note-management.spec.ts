@@ -1,8 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { seedUserSettings } from './helpers/seedUserSettings';
 
 test.describe('Note Management Features', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/notes/new');
+    await seedUserSettings(page);
+    // baseURL に basePath ('/simplenotebook') が含まれる場合、先頭 '/' の相対パスは
+    // basePath を無視してしまうため、basePath を含む絶対パスで遷移する
+    await page.goto('/simplenotebook/notes/new');
     // Wait for page to be fully loaded
     await expect(page.locator('h1')).toContainText('SimpleNotebook');
   });
