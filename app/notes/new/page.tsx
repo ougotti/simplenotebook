@@ -6,6 +6,7 @@ import { useNotes } from '../../../hooks/useNotes'
 import { useNoteSearch } from '../../../hooks/useNoteSearch'
 import { getUserDisplayName } from '../../../utils/userDisplay'
 import UserDisplay from '../../../components/UserDisplay'
+import ThemeToggle from '../../../components/ThemeToggle'
 import SearchBox from '../../../components/SearchBox'
 
 function NewNotePageContent() {
@@ -175,7 +176,7 @@ function NewNotePageContent() {
         <div>
           <h1 className="text-2xl font-bold">SimpleNotebook</h1>
           {isLocal && (
-            <p className="text-sm text-orange-600">
+            <p className="text-sm text-orange-600 dark:text-orange-400">
               開発モード - ローカルストレージ使用中
             </p>
           )}
@@ -190,15 +191,16 @@ function NewNotePageContent() {
             )}
           </div>
           <div className="flex items-center space-x-2">
+            <ThemeToggle />
             <button
               onClick={() => router.push('/settings')}
-              className="text-sm text-gray-600 hover:text-gray-800 underline"
+              className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 underline"
             >
               設定
             </button>
             <button
               onClick={signOut}
-              className="text-sm text-blue-500 hover:text-blue-700"
+              className="text-sm text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
             >
               サインアウト
             </button>
@@ -226,13 +228,13 @@ function NewNotePageContent() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
               type="text"
-              className="w-full border rounded p-2"
+              className="w-full border dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-800"
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="ノートのタイトル"
             />
             <textarea
-              className="w-full h-64 border rounded p-2 font-mono text-sm"
+              className="w-full h-64 border dark:border-gray-600 rounded p-2 font-mono text-sm bg-white dark:bg-gray-800"
               value={content}
               onChange={e => setContent(e.target.value)}
               placeholder="Markdownを書いてください..."
@@ -258,7 +260,7 @@ function NewNotePageContent() {
             <h2 className="text-xl font-semibold">保存されたノート</h2>
             <button
               onClick={fetchNotes}
-              className="text-sm text-blue-500 hover:text-blue-700"
+              className="text-sm text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
             >
               更新
             </button>
@@ -267,36 +269,36 @@ function NewNotePageContent() {
           <SearchBox value={query} onChange={setQuery} />
 
           {loading && (
-            <div className="text-center text-gray-500">
+            <div className="text-center text-gray-500 dark:text-gray-400">
               ノートを読み込み中...
             </div>
           )}
-          
+
           {error && (
-            <div className="text-red-600 text-sm">
+            <div className="text-red-600 dark:text-red-400 text-sm">
               エラー: {error}
             </div>
           )}
-          
+
           {notes.length === 0 && !loading && (
-            <div className="text-gray-500 text-center">
+            <div className="text-gray-500 dark:text-gray-400 text-center">
               まだノートがありません
             </div>
           )}
 
           {notes.length > 0 && filteredNotes.length === 0 && isSearching && (
-            <div className="text-gray-500 text-center" data-testid="search-no-results">
+            <div className="text-gray-500 dark:text-gray-400 text-center" data-testid="search-no-results">
               「{query}」に一致するノートはありません
             </div>
           )}
 
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {filteredNotes.map((note) => (
-              <div key={note.id} className="border rounded p-3 hover:bg-gray-50">
+              <div key={note.id} className="border dark:border-gray-700 rounded p-3 hover:bg-gray-50 dark:hover:bg-gray-800">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <h3 className="font-medium text-sm">{note.title}</h3>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       作成: {new Date(note.createdAt).toLocaleDateString('ja-JP')}
                       {note.updatedAt !== note.createdAt && (
                         <span className="ml-2">
@@ -331,13 +333,13 @@ function NewNotePageContent() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm mx-4">
             <h3 className="text-lg font-semibold mb-4">ノートを削除</h3>
-            <p className="text-gray-600 mb-6">このノートを削除しますか？この操作は元に戻せません。</p>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">このノートを削除しますか？この操作は元に戻せません。</p>
             <div className="flex justify-end space-x-3">
               <button
                 onClick={cancelDeleteNote}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100"
               >
                 キャンセル
               </button>

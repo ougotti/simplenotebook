@@ -8,6 +8,16 @@ body {
   margin: 0;
 }
 
+/* ネイティブ UI (スクロールバー、フォームコントロール) を選択中のテーマに一致させる。
+   OS がダークでもライトを選択している場合はネイティブ UI もライトのままにする */
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
