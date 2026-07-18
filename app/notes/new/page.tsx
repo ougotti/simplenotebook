@@ -8,10 +8,13 @@ import { getUserDisplayName } from '../../../utils/userDisplay'
 import UserDisplay from '../../../components/UserDisplay'
 import ThemeToggle from '../../../components/ThemeToggle'
 import SearchBox from '../../../components/SearchBox'
+import TagInput from '../../../components/TagInput'
 
 function NewNotePageContent() {
   const [content, setContent] = useState('')
   const [title, setTitle] = useState('')
+  const [tags, setTags] = useState<string[]>([])
+  const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isProcessingCallback, setIsProcessingCallback] = useState(false)
@@ -24,6 +27,10 @@ function NewNotePageContent() {
   const { user, signOut, isLocal } = useAuth()
   const { notes, loading, error, createNote, updateNote, deleteNote, getNote, fetchNotes } = useNotes()
   const { query, setQuery, filteredNotes, isSearching } = useNoteSearch(notes, getNote)
+  // キーワード検索の結果にタグ絞り込みを重ねる (両方指定時は AND 条件)
+  const visibleNotes = selectedTag
+    ? filteredNotes.filter(note => (note.tags ?? []).includes(selectedTag))
+    : filteredNotes
 
   // Handle OAuth callback
   useEffect(() => {
@@ -82,6 +89,7 @@ function NewNotePageContent() {
         await updateNote(editingNote, {
           title: title || 'Untitled',
           content,
+          tags,
         })
         setMessage('ノートを更新しました！')
       } else {
@@ -89,6 +97,7 @@ function NewNotePageContent() {
         await createNote({
           title: title || 'Untitled',
           content,
+          tags,
         })
         setMessage(isLocal ? 'ノートを保存しました（ローカル保存）' : 'ノートを保存しました！')
       }
@@ -96,6 +105,7 @@ function NewNotePageContent() {
       // Clear form after successful save
       setContent('')
       setTitle('')
+      setTags([])
       setEditingNote(null)
       window.localStorage.removeItem('new-note-content')
       window.localStorage.removeItem('new-note-title')
@@ -113,6 +123,7 @@ function NewNotePageContent() {
       if (note) {
         setTitle(note.title)
         setContent(note.content)
+        setTags(note.tags ?? [])
         setEditingNote(noteId)
         setMessage('')
       }
@@ -137,6 +148,7 @@ function NewNotePageContent() {
         setEditingNote(null)
         setTitle('')
         setContent('')
+        setTags([])
       }
     } catch (err) {
       setMessage('削除に失敗しました。もう一度お試しください。')
@@ -154,6 +166,7 @@ function NewNotePageContent() {
     setEditingNote(null)
     setTitle('')
     setContent('')
+    setTags([])
     setMessage('')
     window.localStorage.removeItem('new-note-content')
     window.localStorage.removeItem('new-note-title')
@@ -233,6 +246,7 @@ function NewNotePageContent() {
               onChange={e => setTitle(e.target.value)}
               placeholder="ノートのタイトル"
             />
+            <TagInput tags={tags} onChange={setTags} disabled={isSaving} />
             <textarea
               className="w-full h-64 border dark:border-gray-600 rounded p-2 font-mono text-sm bg-white dark:bg-gray-800"
               value={content}
@@ -268,6 +282,21 @@ function NewNotePageContent() {
 
           <SearchBox value={query} onChange={setQuery} />
 
+          {selectedTag && (
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+              <span>タグで絞り込み:</span>
+              <button
+                type="button"
+                onClick={() => setSelectedTag(null)}
+                aria-label={`タグ「${selectedTag}」の絞り込みを解除`}
+                className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full px-2 py-0.5 hover:bg-blue-200 dark:hover:bg-blue-800"
+                data-testid="active-tag-filter"
+              >
+                {selectedTag} ✕
+              </button>
+            </div>
+          )}
+
           {loading && (
             <div className="text-center text-gray-500 dark:text-gray-400">
               ノートを読み込み中...
@@ -292,8 +321,14 @@ function NewNotePageContent() {
             </div>
           )}
 
+          {notes.length > 0 && filteredNotes.length > 0 && visibleNotes.length === 0 && selectedTag && (
+            <div className="text-gray-500 dark:text-gray-400 text-center" data-testid="tag-no-results">
+              タグ「{selectedTag}」のノートはありません
+            </div>
+          )}
+
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {filteredNotes.map((note) => (
+            {visibleNotes.map((note) => (
               <div key={note.id} className="border dark:border-gray-700 rounded p-3 hover:bg-gray-50 dark:hover:bg-gray-800">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
@@ -306,6 +341,22 @@ function NewNotePageContent() {
                         </span>
                       )}
                     </p>
+                    {(note.tags ?? []).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {(note.tags ?? []).map(tag => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => setSelectedTag(tag)}
+                            aria-label={`タグ「${tag}」で絞り込み`}
+                            className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full px-2 py-0.5 hover:bg-blue-200 dark:hover:bg-blue-800"
+                            data-testid="note-tag"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex space-x-2 ml-2">
                     <button

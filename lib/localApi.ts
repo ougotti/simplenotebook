@@ -27,6 +27,7 @@ export class LocalApiClient {
       notes: notes.map(note => ({
         id: note.id,
         title: note.title,
+        tags: note.tags ?? [],
         createdAt: note.createdAt,
         updatedAt: note.updatedAt,
       })),
@@ -52,6 +53,7 @@ export class LocalApiClient {
       id: generateNoteId(),
       title: noteData.title || 'Untitled',
       content: noteData.content || '',
+      tags: noteData.tags ?? [],
       createdAt: now,
       updatedAt: now,
     };
@@ -75,6 +77,7 @@ export class LocalApiClient {
       ...existingNote,
       title: noteData.title !== undefined ? noteData.title : existingNote.title,
       content: noteData.content !== undefined ? noteData.content : existingNote.content,
+      tags: noteData.tags !== undefined ? noteData.tags : existingNote.tags ?? [],
       updatedAt: new Date().toISOString(),
     };
     

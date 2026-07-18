@@ -10,8 +10,32 @@ interface Note {
   id: string;
   title: string;
   content: string;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+const MAX_TAGS = 20;
+const MAX_TAG_LENGTH = 50;
+// 無効要素だけの巨大配列で全件走査させられないよう、走査自体にも上限を設ける
+const MAX_TAG_SCAN = 100;
+
+// タグの入力サニタイゼーション: 文字列配列以外は空に、trim・空要素除去・重複排除・件数/長さ制限
+function sanitizeTags(input: unknown): string[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const raw of input.slice(0, MAX_TAG_SCAN)) {
+    if (typeof raw !== 'string') continue;
+    const tag = raw.trim().slice(0, MAX_TAG_LENGTH);
+    if (!tag || seen.has(tag)) continue;
+    seen.add(tag);
+    tags.push(tag);
+    if (tags.length >= MAX_TAGS) break;
+  }
+  return tags;
 }
 
 interface UserSettings {
@@ -123,6 +147,8 @@ async function listNotes(userPrefix: string): Promise<APIGatewayProxyResult> {
       return {
         id: noteId,
         title: note.title,
+        // S3 上のデータが壊れていても型不整合を返さないよう読み出し側でも正規化する
+        tags: sanitizeTags(note.tags),
         createdAt: note.createdAt,
         updatedAt: note.updatedAt,
       };
@@ -147,6 +173,7 @@ async function createNote(userPrefix: string, noteData: Partial<Note>): Promise<
     id: noteId,
     title: noteData.title || 'Untitled',
     content: noteData.content || '',
+    tags: sanitizeTags(noteData.tags),
     createdAt: now,
     updatedAt: now,
   };
@@ -249,6 +276,8 @@ async function updateNote(userPrefix: string, noteId?: string, noteData?: Partia
       ...existingNote,
       ...noteData,
       id: existingNote.id, // Prevent ID change
+      // 既存データ側が壊れている場合も含めて、保存前に必ず正規化する
+      tags: sanitizeTags(noteData?.tags !== undefined ? noteData.tags : existingNote.tags),
       createdAt: existingNote.createdAt, // Prevent creation date change
       updatedAt: new Date().toISOString(),
     };
