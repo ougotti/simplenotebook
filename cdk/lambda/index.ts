@@ -17,6 +17,8 @@ interface Note {
 
 const MAX_TAGS = 20;
 const MAX_TAG_LENGTH = 50;
+// 無効要素だけの巨大配列で全件走査させられないよう、走査自体にも上限を設ける
+const MAX_TAG_SCAN = 100;
 
 // タグの入力サニタイゼーション: 文字列配列以外は空に、trim・空要素除去・重複排除・件数/長さ制限
 function sanitizeTags(input: unknown): string[] {
@@ -25,7 +27,7 @@ function sanitizeTags(input: unknown): string[] {
   }
   const seen = new Set<string>();
   const tags: string[] = [];
-  for (const raw of input) {
+  for (const raw of input.slice(0, MAX_TAG_SCAN)) {
     if (typeof raw !== 'string') continue;
     const tag = raw.trim().slice(0, MAX_TAG_LENGTH);
     if (!tag || seen.has(tag)) continue;
@@ -145,7 +147,8 @@ async function listNotes(userPrefix: string): Promise<APIGatewayProxyResult> {
       return {
         id: noteId,
         title: note.title,
-        tags: note.tags ?? [],
+        // S3 上のデータが壊れていても型不整合を返さないよう読み出し側でも正規化する
+        tags: sanitizeTags(note.tags),
         createdAt: note.createdAt,
         updatedAt: note.updatedAt,
       };
@@ -273,7 +276,8 @@ async function updateNote(userPrefix: string, noteId?: string, noteData?: Partia
       ...existingNote,
       ...noteData,
       id: existingNote.id, // Prevent ID change
-      tags: noteData?.tags !== undefined ? sanitizeTags(noteData.tags) : existingNote.tags ?? [],
+      // 既存データ側が壊れている場合も含めて、保存前に必ず正規化する
+      tags: sanitizeTags(noteData?.tags !== undefined ? noteData.tags : existingNote.tags),
       createdAt: existingNote.createdAt, // Prevent creation date change
       updatedAt: new Date().toISOString(),
     };

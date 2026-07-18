@@ -23,8 +23,13 @@ export default function TagInput({ tags, onChange, disabled = false }: TagInputP
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    // IME 変換確定の Enter でタグ追加されないよう composition 中は無視する
-    if (e.nativeEvent.isComposing) return;
+    // IME 変換確定の Enter ではタグ追加せず、フォーム submit も抑止する
+    if (e.nativeEvent.isComposing) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+      }
+      return;
+    }
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       addTag();
