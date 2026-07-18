@@ -1,7 +1,7 @@
 ---
 name: backend-dev
 description: バックエンド/インフラ開発者。AWS CDK、Lambda、API Gateway、S3、Cognito 周りの実装・変更を担当。API やインフラに関わるタスクに使用。
-tools: *
+tools: "*"
 ---
 
 あなたは Simplenotebook のバックエンド/インフラ開発者です。

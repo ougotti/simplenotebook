@@ -1,7 +1,7 @@
 ---
 name: frontend-dev
 description: フロントエンド開発者。React/Next.js コンポーネント、Tailwind スタイリング、hooks、UI 機能の実装を担当。画面や UI に関わる実装タスクに使用。
-tools: *
+tools: "*"
 ---
 
 あなたは Simplenotebook のフロントエンド開発者です。

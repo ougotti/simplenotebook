@@ -12,18 +12,19 @@
 - [x] 絞り込みロジック追加 — `hooks/useNoteSearch.ts` として分離(タイトル+本文、大文字小文字無視。一覧 API は本文を返さないため、検索時に本文を取得し `id:updatedAt` キーでキャッシュ)
 - [x] ノート一覧画面(`app/notes/new/page.tsx`)に検索ボックスを組み込み
 - [x] 0 件時の空状態表示(`search-no-results`)
-- [x] E2E テスト: タイトル検索/本文検索/0件表示+クリア(`tests/search-and-darkmode.spec.ts`)
+- [x] E2E テスト: タイトル検索/本文検索/0件表示+クリア(`tests/note-search.spec.ts`)
 
 ### B-02 ダークモード
 - [x] `tailwind.config.js` に `darkMode: 'class'` 設定
 - [x] テーマ切り替え hook(`hooks/useTheme.ts`)— OS 追従 + 手動切替 + localStorage 保存
 - [x] ヘッダーに切り替えトグル追加(`components/ThemeToggle.tsx`)+ `app/layout.tsx` に描画前適用スクリプト(フラッシュ防止)
 - [x] 全画面のダーク配色対応(一覧、エディタ、設定ページ、設定モーダル、ログイン画面、削除モーダル)
-- [x] E2E テスト: トグル切り替え/リロード後の永続化/OS 設定追従
+- [x] E2E テスト: トグル切り替え/リロード後の永続化/OS 設定追従(`tests/dark-mode.spec.ts`)
 
 ## Definition of Done
 - `npm run lint` / `npm run build` 通過
-- 新規機能に E2E テストあり、既存テストが全て通る
+- 新規機能に E2E テストあり、新規テストは全て通る
+- 既存テストは main 時点の既知失敗8件(B-13 参照)を除き全て通る
 - basePath(`/simplenotebook`)配下で動作確認済み
 
 ## 検証結果(2026-07-18)
