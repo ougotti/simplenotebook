@@ -103,9 +103,9 @@ test.describe('Simplenotebook - Development Server', () => {
     // Wait for page to be loaded
     await page.waitForSelector('h1', { timeout: 15000 });
     
-    // Check for saved notes section
-    await expect(page.locator('h2')).toContainText('保存されたノート');
-    await expect(page.locator('button')).toContainText('更新');
+    // Check for saved notes section (h2/button は複数あるため hasText で特定する)
+    await expect(page.locator('h2').filter({ hasText: '保存されたノート' })).toBeVisible();
+    await expect(page.locator('button').filter({ hasText: '更新' })).toBeVisible();
     
     // Initially should show "no notes" message
     await expect(page.locator('text=まだノートがありません')).toBeVisible({ timeout: 10000 });
@@ -117,9 +117,9 @@ test.describe('Simplenotebook - Development Server', () => {
     // Wait for page to be loaded
     await page.waitForSelector('h1', { timeout: 15000 });
     
-    // Check for user display area and buttons
-    await expect(page.locator('button')).toContainText('サインアウト');
-    await expect(page.locator('button')).toContainText('設定');
+    // Check for user display area and buttons (button は複数あるため hasText で特定する)
+    await expect(page.locator('button').filter({ hasText: 'サインアウト' })).toBeVisible();
+    await expect(page.locator('button').filter({ hasText: '設定' })).toBeVisible();
   });
 
   test('should handle Japanese characters correctly', async ({ page }) => {
