@@ -10,8 +10,30 @@ interface Note {
   id: string;
   title: string;
   content: string;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+const MAX_TAGS = 20;
+const MAX_TAG_LENGTH = 50;
+
+// タグの入力サニタイゼーション: 文字列配列以外は空に、trim・空要素除去・重複排除・件数/長さ制限
+function sanitizeTags(input: unknown): string[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const raw of input) {
+    if (typeof raw !== 'string') continue;
+    const tag = raw.trim().slice(0, MAX_TAG_LENGTH);
+    if (!tag || seen.has(tag)) continue;
+    seen.add(tag);
+    tags.push(tag);
+    if (tags.length >= MAX_TAGS) break;
+  }
+  return tags;
 }
 
 interface UserSettings {
@@ -123,6 +145,7 @@ async function listNotes(userPrefix: string): Promise<APIGatewayProxyResult> {
       return {
         id: noteId,
         title: note.title,
+        tags: note.tags ?? [],
         createdAt: note.createdAt,
         updatedAt: note.updatedAt,
       };
@@ -147,6 +170,7 @@ async function createNote(userPrefix: string, noteData: Partial<Note>): Promise<
     id: noteId,
     title: noteData.title || 'Untitled',
     content: noteData.content || '',
+    tags: sanitizeTags(noteData.tags),
     createdAt: now,
     updatedAt: now,
   };
@@ -249,6 +273,7 @@ async function updateNote(userPrefix: string, noteId?: string, noteData?: Partia
       ...existingNote,
       ...noteData,
       id: existingNote.id, // Prevent ID change
+      tags: noteData?.tags !== undefined ? sanitizeTags(noteData.tags) : existingNote.tags ?? [],
       createdAt: existingNote.createdAt, // Prevent creation date change
       updatedAt: new Date().toISOString(),
     };

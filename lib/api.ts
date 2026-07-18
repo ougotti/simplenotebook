@@ -5,6 +5,8 @@ export interface Note {
   id: string;
   title: string;
   content: string;
+  /** 旧データにはフィールド自体が存在しないため optional (タグなしは [] 扱い) */
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }

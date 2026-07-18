@@ -28,6 +28,7 @@ export function useNotes() {
       setNotes(prev => [...prev, {
         id: response.note.id,
         title: response.note.title,
+        tags: response.note.tags ?? [],
         createdAt: response.note.createdAt,
         updatedAt: response.note.updatedAt,
       }]);
@@ -42,11 +43,12 @@ export function useNotes() {
     setError(null);
     try {
       const response = await apiClient.updateNote(id, noteData);
-      setNotes(prev => prev.map(note => 
-        note.id === id 
+      setNotes(prev => prev.map(note =>
+        note.id === id
           ? {
               id: response.note.id,
               title: response.note.title,
+              tags: response.note.tags ?? [],
               createdAt: response.note.createdAt,
               updatedAt: response.note.updatedAt,
             }
