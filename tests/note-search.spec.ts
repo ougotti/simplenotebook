@@ -6,7 +6,9 @@ async function createNote(page: Page, title: string, content: string) {
   await page.fill('input[placeholder*="ノートのタイトル"]', title);
   await page.fill('textarea[placeholder*="Markdownを書いてください"]', content);
   await page.click('button[type="submit"]');
-  await expect(page.locator('text=ノートを保存しました（ローカル保存）')).toBeVisible();
+  // ローカル/リモート環境で成功メッセージの文言が異なる (「保存しました！」/「保存しました（ローカル保存）」) ため、
+  // 共通する部分文字列で判定する
+  await expect(page.locator('text=保存しました')).toBeVisible();
 }
 
 test.describe('Note Search (B-01)', () => {
