@@ -55,7 +55,7 @@ export default function SettingsPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">設定を読み込んでいます...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">設定を読み込んでいます...</p>
         </div>
       </div>
     );
@@ -66,7 +66,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-3xl font-bold text-gray-900">ユーザー設定</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">ユーザー設定</h1>
           <button
             onClick={handleBackToNotes}
             className="text-sm text-blue-600 hover:text-blue-800 underline"
@@ -74,13 +74,13 @@ export default function SettingsPage() {
             ノートページに戻る
           </button>
         </div>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-gray-400">
           あなたの設定を管理できます。
         </p>
       </div>
 
       {error ? (
-        <div className="bg-red-50 border border-red-200 rounded-md p-6 mb-6">
+        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-md p-6 mb-6">
           <div className="flex">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -105,31 +105,31 @@ export default function SettingsPage() {
         </div>
       ) : (
         userSettings && (
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">基本情報</h2>
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">基本情報</h2>
             </div>
             <div className="px-6 py-4 space-y-6">
               {/* 表示名 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   表示名
                 </label>
-                <div className="bg-gray-50 rounded-md px-3 py-2 min-h-[2.5rem] flex items-center">
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-md px-3 py-2 min-h-[2.5rem] flex items-center">
                   <UserDisplay />
                 </div>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   他のユーザーに表示される名前です。
                 </p>
               </div>
 
               {/* 作成日時 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   アカウント作成日時
                 </label>
-                <div className="bg-gray-50 rounded-md px-3 py-2">
-                  <span className="text-sm text-gray-900">
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-md px-3 py-2">
+                  <span className="text-sm text-gray-900 dark:text-gray-100">
                     {new Date(userSettings.createdAt).toLocaleString('ja-JP')}
                   </span>
                 </div>
@@ -137,18 +137,18 @@ export default function SettingsPage() {
 
               {/* 最終更新日時 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   最終更新日時
                 </label>
-                <div className="bg-gray-50 rounded-md px-3 py-2">
-                  <span className="text-sm text-gray-900">
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-md px-3 py-2">
+                  <span className="text-sm text-gray-900 dark:text-gray-100">
                     {new Date(userSettings.updatedAt).toLocaleString('ja-JP')}
                   </span>
                 </div>
               </div>
             </div>
             
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
               <button
                 onClick={() => setShowSettingsModal(true)}
                 className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"

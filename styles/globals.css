@@ -8,6 +8,11 @@ body {
   margin: 0;
 }
 
+/* ダークモード時のネイティブ UI (スクロールバー、フォームコントロール) を調整 */
+html.dark {
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
