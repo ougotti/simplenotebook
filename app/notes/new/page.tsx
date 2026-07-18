@@ -3,8 +3,10 @@ import { useState, FormEvent, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '../../../hooks/useAuth'
 import { useNotes } from '../../../hooks/useNotes'
+import { useNoteSearch } from '../../../hooks/useNoteSearch'
 import { getUserDisplayName } from '../../../utils/userDisplay'
 import UserDisplay from '../../../components/UserDisplay'
+import SearchBox from '../../../components/SearchBox'
 
 function NewNotePageContent() {
   const [content, setContent] = useState('')
@@ -20,6 +22,7 @@ function NewNotePageContent() {
   const router = useRouter()
   const { user, signOut, isLocal } = useAuth()
   const { notes, loading, error, createNote, updateNote, deleteNote, getNote, fetchNotes } = useNotes()
+  const { query, setQuery, filteredNotes, isSearching } = useNoteSearch(notes, getNote)
 
   // Handle OAuth callback
   useEffect(() => {
@@ -260,7 +263,9 @@ function NewNotePageContent() {
               更新
             </button>
           </div>
-          
+
+          <SearchBox value={query} onChange={setQuery} />
+
           {loading && (
             <div className="text-center text-gray-500">
               ノートを読み込み中...
@@ -278,9 +283,15 @@ function NewNotePageContent() {
               まだノートがありません
             </div>
           )}
-          
+
+          {notes.length > 0 && filteredNotes.length === 0 && isSearching && (
+            <div className="text-gray-500 text-center" data-testid="search-no-results">
+              「{query}」に一致するノートはありません
+            </div>
+          )}
+
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {notes.map((note) => (
+            {filteredNotes.map((note) => (
               <div key={note.id} className="border rounded p-3 hover:bg-gray-50">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
