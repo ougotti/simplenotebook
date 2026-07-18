@@ -29,7 +29,11 @@ test.describe('Simplenotebook - Fixed Selectors', () => {
     await expect(page.locator('textarea[placeholder*="Markdownを書いてください"]')).toBeVisible();
     
     // Use more specific selector for the main note form submit button
-    const mainFormSubmitButton = page.locator('form').filter({ hasText: 'ノートのタイトル' }).locator('button[type="submit"]');
+    // (hasText は placeholder にマッチしないため、has でタイトル入力欄を含む form を特定する)
+    const mainFormSubmitButton = page
+      .locator('form')
+      .filter({ has: page.locator('input[placeholder*="ノートのタイトル"]') })
+      .locator('button[type="submit"]');
     await expect(mainFormSubmitButton).toBeVisible();
     await expect(mainFormSubmitButton).toContainText('保存');
   });
@@ -48,7 +52,11 @@ test.describe('Simplenotebook - Fixed Selectors', () => {
     await page.fill('textarea[placeholder*="Markdownを書いてください"]', testContent);
     
     // Click the main form submit button (not the settings form)
-    const mainFormSubmitButton = page.locator('form').filter({ hasText: 'ノートのタイトル' }).locator('button[type="submit"]');
+    // (hasText は placeholder にマッチしないため、has でタイトル入力欄を含む form を特定する)
+    const mainFormSubmitButton = page
+      .locator('form')
+      .filter({ has: page.locator('input[placeholder*="ノートのタイトル"]') })
+      .locator('button[type="submit"]');
     await mainFormSubmitButton.click();
     
     // Wait for success message (be flexible with the exact text)
@@ -165,7 +173,8 @@ console.log('日本語コメント');
     await page.setViewportSize({ width: 1200, height: 800 });
     
     // Check that grid layout exists
-    const gridContainer = page.locator('.grid').filter({ hasText: 'ノートのタイトル' });
+    // (hasText は placeholder にマッチしないため、has でタイトル入力欄を含む grid を特定する)
+    const gridContainer = page.locator('.grid').filter({ has: page.locator('input[placeholder*="ノートのタイトル"]') });
     await expect(gridContainer).toBeVisible();
     
     // Test mobile viewport

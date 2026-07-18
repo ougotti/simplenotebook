@@ -28,8 +28,9 @@ test.describe('Simplenotebook - Final Working Tests', () => {
     await expect(page.locator('input[placeholder*="ノートのタイトル"]')).toBeVisible();
     await expect(page.locator('textarea[placeholder*="Markdownを書いてください"]')).toBeVisible();
     
-    // Just check that submit buttons exist (don't be strict about which one)
-    await expect(page.locator('button[type="submit"]')).toHaveCount(2); // One for main form, one for settings
+    // 設定モーダルは開いた時のみレンダリングされるため、submit ボタンはノートフォームの1つだけ
+    await expect(page.locator('button[type="submit"]')).toHaveCount(1);
+    await expect(page.locator('button[type="submit"]')).toContainText('保存');
   });
 
   test('LocalStorageでコンテンツが永続化される', async ({ page }) => {
