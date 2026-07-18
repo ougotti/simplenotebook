@@ -1,7 +1,7 @@
-# スプリント 1 計画
+# スプリント 1 計画・実績
 
 - **状態**: 完了(B-01, B-02 とも main にマージ済み)
-- **期間**: 2026-07-18 〜(1〜2 週間目安)
+- **期間**: 2026-07-18 〜 2026-07-18(完了)
 - **スプリントゴール**: 「ノートが増えても快適に使える」— 検索とダークモードで日常利用の体験を引き上げる
 - **選択ストーリー**: B-01 ノート検索(M)、B-02 ダークモード(S)
 - **Issue / PR**: B-01 → Issue [#68](https://github.com/ougotti/simplenotebook/issues/68) / PR [#70](https://github.com/ougotti/simplenotebook/pull/70)、B-02 → Issue [#69](https://github.com/ougotti/simplenotebook/issues/69) / PR [#71](https://github.com/ougotti/simplenotebook/pull/71)
@@ -39,7 +39,7 @@
 - PR #71 (B-02 ダークモード): マージ済み。Copilot レビュー2件(マウント時の class 同期、ライト時の color-scheme 明示)に対応済み。#70 との統合時に `app/notes/new/page.tsx` のコンフリクトを解消し、`SearchBox.tsx` のダークモード配色抜けも追加修正
 - PR #74 (CLAUDE.md): マージ済み。Copilot レビュー1件(`gh api -F` の挙動)は検証の結果誤りと判明したが、紛らわしさを解消する注記を追加
 
-## 振り返り(スプリント終了時に記入)
+## 振り返り
 - Keep: Issue 毎に個別ブランチ・個別 PR に分割したことで、レビュー対応やコンフリクト解消の影響範囲が明確だった
 - Problem: 既存 E2E に main 時点で失敗しているテストが8件ある(セレクタの strict mode violation)。また、独立 PR に分割した副作用として、統合後に一部コンポーネント(SearchBox.tsx)のダークモード対応漏れが発生した
 - Try: 次スプリントで既存テストの修繕タスク(B-13)を入れる。複数 PR が同じファイルを触る場合は、マージ順を決めて先にマージ→後続 PR で rebase する運用も検討する
