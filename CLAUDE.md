@@ -14,6 +14,7 @@
 - レビューコメント(Copilot・人間レビュアー問わず)に対応したら、修正をコミット・push した後、**各コメントにインラインで返信する**
 - 「対応しました」だけで終わらせず、具体的に何をどう変更したか(該当コミットハッシュ含む)を一言添える
 - 返信には `gh api repos/<owner>/<repo>/pulls/<PR番号>/comments -f body="..." -F in_reply_to=<コメントID>` を使う
+  (`-F` は `@` 接頭辞がない限りファイル読み込みではなく型付き値として送信されるため、`in_reply_to` の数値指定として正しい。文字列は `-f`、数値・真偽値は `-F` を使う)
 
 ## スプリント運用
 - `.claude/agents/` に役割エージェント(product-owner, scrum-master, frontend-dev, backend-dev, qa-engineer, ux-designer)を定義済み
