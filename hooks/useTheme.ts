@@ -31,7 +31,11 @@ export function useTheme() {
   const [theme, setThemeState] = useState<Theme>('light');
 
   useEffect(() => {
-    setThemeState(getStoredTheme() ?? getSystemTheme());
+    const initial = getStoredTheme() ?? getSystemTheme();
+    setThemeState(initial);
+    // layout.tsx のインラインスクリプトが実行されない環境
+    // (localStorage アクセス不可等) でも見た目を state と一致させる
+    applyTheme(initial);
   }, []);
 
   // 手動設定がない間は OS のテーマ変更に追従する
