@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Note } from '../lib/api';
-
-type NoteSummary = Omit<Note, 'content'>;
+import { Note, NoteSummary } from '../lib/api';
 
 // 本文取得の同時実行数の上限。ノート数が多い場合に一括 Promise.all で
 // リクエストが膨らむのを避けるため、この件数ずつ区切って順に取得する。

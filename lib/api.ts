@@ -17,8 +17,11 @@ export interface UserSettings {
   updatedAt: string;
 }
 
+/** 一覧表示用サマリ。tags を常に string[] に正規化済みで保持する */
+export type NoteSummary = Omit<Note, 'content' | 'tags'> & { tags: string[] };
+
 export interface NotesListResponse {
-  notes: Omit<Note, 'content'>[];
+  notes: NoteSummary[];
 }
 
 export interface NoteResponse {

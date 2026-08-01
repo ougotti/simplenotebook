@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { apiClient, Note } from '../lib/api';
-
-export type NoteSummary = Omit<Note, 'content'>;
+import { apiClient, Note, NoteSummary } from '../lib/api';
 
 // API 応答から一覧用サマリを作る。content だけを除外し、それ以外のフィールドは
 // 自動的に引き継ぐことで、Note にフィールドが増えたときの反映漏れを防ぐ
@@ -23,7 +21,7 @@ export function useNotes() {
     setError(null);
     try {
       const response = await apiClient.listNotes();
-      setNotes(response.notes);
+      setNotes(response.notes.map(n => ({ ...n, tags: n.tags ?? [] })));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch notes');
     } finally {
