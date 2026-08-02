@@ -9,6 +9,7 @@ import UserDisplay from '../../../components/UserDisplay'
 import ThemeToggle from '../../../components/ThemeToggle'
 import SearchBox from '../../../components/SearchBox'
 import TagInput from '../../../components/TagInput'
+import MarkdownPreview from '../../../components/MarkdownPreview'
 
 function NewNotePageContent() {
   const [content, setContent] = useState('')
@@ -20,6 +21,7 @@ function NewNotePageContent() {
   const [isProcessingCallback, setIsProcessingCallback] = useState(false)
   const [editingNote, setEditingNote] = useState<string | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
   const [pendingDeleteNoteId, setPendingDeleteNoteId] = useState<string | null>(null)
   
   const searchParams = useSearchParams()
@@ -106,6 +108,7 @@ function NewNotePageContent() {
       setContent('')
       setTitle('')
       setTags([])
+      setShowPreview(false)
       setEditingNote(null)
       window.localStorage.removeItem('new-note-content')
       window.localStorage.removeItem('new-note-title')
@@ -167,6 +170,7 @@ function NewNotePageContent() {
     setTitle('')
     setContent('')
     setTags([])
+    setShowPreview(false)
     setMessage('')
     window.localStorage.removeItem('new-note-content')
     window.localStorage.removeItem('new-note-title')
@@ -247,12 +251,48 @@ function NewNotePageContent() {
               placeholder="ノートのタイトル"
             />
             <TagInput tags={tags} onChange={setTags} disabled={isSaving} />
-            <textarea
-              className="w-full h-64 border dark:border-gray-600 rounded p-2 font-mono text-sm bg-white dark:bg-gray-800"
-              value={content}
-              onChange={e => setContent(e.target.value)}
-              placeholder="Markdownを書いてください..."
-            />
+            <div>
+              <div className="flex gap-1 mb-1" role="tablist" aria-label="エディタ表示切り替え">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={!showPreview}
+                  onClick={() => setShowPreview(false)}
+                  className={`text-xs px-3 py-1 rounded-t border border-b-0 dark:border-gray-600 ${
+                    !showPreview
+                      ? 'bg-white dark:bg-gray-800 font-medium'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                  }`}
+                  data-testid="tab-edit"
+                >
+                  編集
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={showPreview}
+                  onClick={() => setShowPreview(true)}
+                  className={`text-xs px-3 py-1 rounded-t border border-b-0 dark:border-gray-600 ${
+                    showPreview
+                      ? 'bg-white dark:bg-gray-800 font-medium'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                  }`}
+                  data-testid="tab-preview"
+                >
+                  プレビュー
+                </button>
+              </div>
+              {showPreview ? (
+                <MarkdownPreview content={content} />
+              ) : (
+                <textarea
+                  className="w-full h-64 border dark:border-gray-600 rounded p-2 font-mono text-sm bg-white dark:bg-gray-800"
+                  value={content}
+                  onChange={e => setContent(e.target.value)}
+                  placeholder="Markdownを書いてください..."
+                />
+              )}
+            </div>
             <button
               type="submit"
               disabled={isSaving || isProcessingCallback}

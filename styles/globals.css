@@ -21,3 +21,152 @@ html.dark {
 * {
   box-sizing: border-box;
 }
+
+/* ===== Markdown プレビュー ===== */
+.markdown-preview h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0.75rem 0 0.5rem;
+  border-bottom: 1px solid rgb(229 231 235);
+  padding-bottom: 0.25rem;
+}
+html.dark .markdown-preview h1 {
+  border-bottom-color: rgb(55 65 81);
+}
+.markdown-preview h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.75rem 0 0.5rem;
+}
+.markdown-preview h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.25rem;
+}
+.markdown-preview p {
+  margin: 0.5rem 0;
+  line-height: 1.7;
+}
+.markdown-preview ul,
+.markdown-preview ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+.markdown-preview ul {
+  list-style: disc;
+}
+.markdown-preview ol {
+  list-style: decimal;
+}
+.markdown-preview blockquote {
+  margin: 0.5rem 0;
+  padding-left: 0.75rem;
+  border-left: 3px solid rgb(209 213 219);
+  color: rgb(107 114 128);
+}
+html.dark .markdown-preview blockquote {
+  border-left-color: rgb(75 85 99);
+  color: rgb(156 163 175);
+}
+.markdown-preview code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  background: rgb(243 244 246);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.3rem;
+}
+html.dark .markdown-preview code {
+  background: rgb(55 65 81);
+}
+.markdown-preview pre {
+  margin: 0.5rem 0;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+}
+.markdown-preview pre code {
+  display: block;
+  padding: 0.75rem;
+  background: rgb(246 248 250);
+}
+html.dark .markdown-preview pre code {
+  background: rgb(17 24 39);
+}
+.markdown-preview table {
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+}
+.markdown-preview th,
+.markdown-preview td {
+  border: 1px solid rgb(209 213 219);
+  padding: 0.25rem 0.5rem;
+}
+html.dark .markdown-preview th,
+html.dark .markdown-preview td {
+  border-color: rgb(75 85 99);
+}
+.markdown-preview a {
+  color: rgb(59 130 246);
+  text-decoration: underline;
+}
+
+/* ===== highlight.js テーマ (GitHub 風、ライト/ダーク両対応) ===== */
+.hljs-comment,
+.hljs-quote {
+  color: rgb(106 115 125);
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-type {
+  color: rgb(215 58 73);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition {
+  color: rgb(3 47 98);
+}
+.hljs-number,
+.hljs-literal,
+.hljs-attr,
+.hljs-variable,
+.hljs-template-variable {
+  color: rgb(0 92 197);
+}
+.hljs-title,
+.hljs-name,
+.hljs-section,
+.hljs-built_in {
+  color: rgb(111 66 193);
+}
+.hljs-deletion {
+  color: rgb(179 29 20);
+}
+html.dark .hljs-comment,
+html.dark .hljs-quote {
+  color: rgb(139 148 158);
+}
+html.dark .hljs-keyword,
+html.dark .hljs-selector-tag,
+html.dark .hljs-type {
+  color: rgb(255 123 114);
+}
+html.dark .hljs-string,
+html.dark .hljs-regexp,
+html.dark .hljs-addition {
+  color: rgb(165 214 255);
+}
+html.dark .hljs-number,
+html.dark .hljs-literal,
+html.dark .hljs-attr,
+html.dark .hljs-variable,
+html.dark .hljs-template-variable {
+  color: rgb(121 192 255);
+}
+html.dark .hljs-title,
+html.dark .hljs-name,
+html.dark .hljs-section,
+html.dark .hljs-built_in {
+  color: rgb(210 168 255);
+}
+html.dark .hljs-deletion {
+  color: rgb(255 161 154);
+}
