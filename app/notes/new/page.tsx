@@ -252,7 +252,7 @@ function NewNotePageContent() {
             />
             <TagInput tags={tags} onChange={setTags} disabled={isSaving} />
             <div>
-              <div className="flex gap-1 mb-1" role="tablist" aria-label="エディタ表示切り替え">
+              <div className="flex gap-1 mb-1" role="group" aria-label="エディタ表示切り替え">
                 <button
                   type="button"
                   role="tab"
