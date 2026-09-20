@@ -31,3 +31,28 @@ fs.mkdirSync(targetDir, { recursive: true });
 fs.cpSync(outDir, targetDir, { recursive: true });
 
 console.log(`Prepared static export for serving under /${BASE_PATH_SEGMENT}`);
+
+// --local-config swaps the served config.json for the placeholder template.
+// lib/config.ts's isLocalMode() keys off those PLACEHOLDER_* values, so this
+// is what keeps the app in local mode (fake signed-in user, localStorage
+// instead of the API) when the preview server is used.
+//
+// CI needs this: the build job downloads the real config.json produced by the
+// deploy-aws job, which would otherwise put the app behind the Cognito sign-in
+// screen and make every E2E test fail. Only the copy under .serve-root/ is
+// touched -- out/ still holds the production config that gets published to
+// GitHub Pages.
+if (process.argv.includes('--local-config')) {
+  const templatePath = path.join(rootDir, 'public', 'config', 'config.template.json');
+  const servedConfigPath = path.join(targetDir, 'config', 'config.json');
+
+  if (!fs.existsSync(templatePath)) {
+    console.error(`Error: ${path.relative(rootDir, templatePath)} not found.`);
+    process.exit(1);
+  }
+
+  fs.mkdirSync(path.dirname(servedConfigPath), { recursive: true });
+  fs.copyFileSync(templatePath, servedConfigPath);
+
+  console.log('Served config.json replaced with the local-mode template (out/ is untouched).');
+}

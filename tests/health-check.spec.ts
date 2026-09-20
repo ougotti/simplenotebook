@@ -6,7 +6,12 @@ test.describe('Health Check Tests', () => {
     try {
       // Simple page load test
       await page.goto(appPath('/'), { waitUntil: 'domcontentloaded' });
-      
+
+      // '/' redirects to /notes/new via router.replace() on mount. Reading the
+      // title before that lands races the navigation and fails with
+      // "Execution context was destroyed, most likely because of a navigation".
+      await page.waitForURL(`**${appPath('/notes/new')}`);
+
       // Just check if page loads without errors
       const title = await page.title();
       expect(title).toBeTruthy();
