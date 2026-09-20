@@ -46,7 +46,11 @@ npm run dev
 npm run build
 
 # ビルドのプレビュー (http://localhost:3000)
+# config.json をプレースホルダへ差し替えてローカルモードで配信する (E2E もこれを使う)
 npm run preview
+
+# 本番と同じ config.json のままプレビューする (実際の Cognito 認証が走る)
+npm run preview:prod
 
 # 設定ファイルの検証
 npm run verify-config
@@ -65,7 +69,8 @@ npm run verify-config
 - `npm run build` - GitHub Pages 用に静的サイトをビルド
 - `npm run start` - 本番サーバーを起動
 - `npm run lint` - ESLint を実行
-- `npm run preview` - `out` ディレクトリをローカルでプレビュー
+- `npm run preview` - `out` ディレクトリをローカルモード(認証なし)でプレビュー。E2E の webServer もこれを使う
+- `npm run preview:prod` - `out` ディレクトリを本番の `config.json` のままプレビュー(実際の Cognito 認証が走る)
 
 ## デプロイメント
 
