@@ -120,7 +120,17 @@ aws iam get-role --role-name GitHubActionsCdkDeployRole --query 'Role.AssumeRole
 aws iam get-role-policy --role-name GitHubActionsCdkDeployRole --policy-name CDKDeployPolicy --query 'PolicyDocument' --output json
 ```
 
+`--start-time` は指定しない。省略すると CloudTrail が保持している全期間（直近90日）が対象になる。
+日付を直書きすると時間の経過とともに検索範囲が狭まり、本文の「直近90日」という前提とズレる。
+
 ```bash
 aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=AssumeRoleWithWebIdentity \
-  --start-time 2026-06-20 --max-items 300 --region ap-northeast-1
+  --max-items 300 --region ap-northeast-1
+```
+
+このロール自身が ambient な認証情報で呼んだ API は、セッション名（`configure-aws-credentials` の既定値 `GitHubActions`）で引く。
+
+```bash
+aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=GitHubActions \
+  --max-items 400 --region ap-northeast-1
 ```
