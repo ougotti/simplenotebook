@@ -71,7 +71,7 @@ flowchart LR
 
 ```
 snb_<env>_<tokenId>_<secret>
-例: snb_prod_7Q2M4K9XH3JD8WPA_kF3...(43 文字の base64url)
+例: snb_<env>_<16文字のtokenId>_<43文字のbase64url>(実際の値は載せない)
 ```
 
 - `tokenId`: 16 文字の Crockford base32。ストレージのキーで、秘密情報ではない
@@ -181,7 +181,7 @@ sequenceDiagram
   - スコープはチェックボックスで選べるようにし、`notes:delete` は既定で外しておく
   - 今のログインはログイン後に `/notes/new` へ戻る作りなので、同意画面の URL を `state` などで保持し、ログイン後にここへ戻れるようにする
 - `resource` パラメータ(RFC 8707)は `/mcp` の URL と一致するかを検証し、トークンにも記録する
-- 発行するトークンのレコードは PAT と同じ形で `kind: "oauth"`・`clientId`・`refreshFamilyId` を持たせる。**オーソライザーは PAT と区別せずに検証できる**
+- 発行するトークンのレコードは PAT と同じ形で `kind: "oauth"`・`clientId`・`familyId`(リフレッシュトークンの系列 ID。3.7 節)を持たせる。**オーソライザーは PAT と区別せずに検証できる**
 - CORS: 同意画面から呼ぶ `/oauth/approve` だけ、GitHub Pages のオリジンを許可する
 
 ### 3.6 エンドポイントの配置(ステージ名の問題)
@@ -322,7 +322,7 @@ POST /notes/{noteId}/append
 Claude Code(PAT):
 
 ```bash
-claude mcp add --transport http simplenotebook https://<mcp-host>/mcp --header "Authorization: Bearer snb_prod_..."
+claude mcp add --transport http simplenotebook https://<mcp-host>/mcp --header "Authorization: Bearer <YOUR_PAT>"
 ```
 
 Claude Code(OAuth。`--header` を付けずに登録し、`/mcp` から認証する):
