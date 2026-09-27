@@ -181,10 +181,26 @@ export class SimplenotebookStack extends cdk.Stack {
       },
     });
 
-    // Cognito Authorizer
-    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'Authorizer', {
-      cognitoUserPools: [userPool],
+    // Lambda オーソライザー(現状は Cognito ID トークンのみ。将来 PAT / OAuth トークンもここで検証する)
+    const authorizerFunction = new lambda.Function(this, 'AuthorizerFunction', {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('authorizer'),
+      environment: {
+        USER_POOL_ID: userPool.userPoolId,
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+      },
     });
+
+    const authorizer = new apigateway.RequestAuthorizer(this, 'RequestAuthorizer', {
+      handler: authorizerFunction,
+      identitySources: [apigateway.IdentitySource.header('Authorization')],
+      // 失効の反映遅延を抑えるため、既定(300 秒)より短くする
+      resultsCacheTtl: cdk.Duration.seconds(60),
+    });
+
+    // authorizer を渡すと認可タイプは CUSTOM になる
+    const authorizedMethodOptions: apigateway.MethodOptions = { authorizer };
 
     // API Resources
     const notesResource = api.root.addResource('notes');
@@ -199,41 +215,15 @@ export class SimplenotebookStack extends cdk.Stack {
     const lambdaIntegration = new apigateway.LambdaIntegration(notesFunction);
 
     // Notes API Methods
-    notesResource.addMethod('GET', lambdaIntegration, {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-
-    notesResource.addMethod('POST', lambdaIntegration, {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-
-    noteResource.addMethod('GET', lambdaIntegration, {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-
-    noteResource.addMethod('PUT', lambdaIntegration, {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-
-    noteResource.addMethod('DELETE', lambdaIntegration, {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    notesResource.addMethod('GET', lambdaIntegration, authorizedMethodOptions);
+    notesResource.addMethod('POST', lambdaIntegration, authorizedMethodOptions);
+    noteResource.addMethod('GET', lambdaIntegration, authorizedMethodOptions);
+    noteResource.addMethod('PUT', lambdaIntegration, authorizedMethodOptions);
+    noteResource.addMethod('DELETE', lambdaIntegration, authorizedMethodOptions);
 
     // Settings API Methods
-    settingsResource.addMethod('GET', lambdaIntegration, {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-
-    settingsResource.addMethod('PUT', lambdaIntegration, {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    settingsResource.addMethod('GET', lambdaIntegration, authorizedMethodOptions);
+    settingsResource.addMethod('PUT', lambdaIntegration, authorizedMethodOptions);
 
     // IAM Role for GitHub Actions OIDC
     const githubOidcRole = new iam.Role(this, 'GitHubActionsCdkDeployRole', {
