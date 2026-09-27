@@ -57,10 +57,18 @@ jobs:
         working-directory: cdk
         run: npm run build
       
+      - name: Test CDK (unit)
+        working-directory: cdk
+        run: npm test
+
       - name: Install Lambda dependencies
         working-directory: cdk/lambda
         run: npm install --production
-      
+
+      - name: Install Authorizer dependencies
+        working-directory: cdk/authorizer
+        run: npm install --production
+
       - name: Deploy CDK stack and get outputs
         working-directory: cdk
         run: npx cdk deploy --require-approval never --outputs-file cdk-outputs.json

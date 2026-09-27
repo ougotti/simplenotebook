@@ -46,8 +46,8 @@ interface UserSettings {
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
-    // Extract user ID from Cognito JWT token
-    const userId = event.requestContext.authorizer?.claims?.sub;
+    // Lambda オーソライザーが検証済みのユーザー ID を context で渡す
+    const userId = event.requestContext.authorizer?.userId;
     if (!userId) {
       return {
         statusCode: 401,
