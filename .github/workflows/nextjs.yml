@@ -63,11 +63,11 @@ jobs:
 
       - name: Install Lambda dependencies
         working-directory: cdk/lambda
-        run: npm install --production
+        run: npm ci --omit=dev
 
       - name: Install Authorizer dependencies
         working-directory: cdk/authorizer
-        run: npm install --production
+        run: npm ci --omit=dev
 
       - name: Deploy CDK stack and get outputs
         working-directory: cdk
