@@ -115,7 +115,7 @@ describe('認証用テーブル', () => {
     );
     // 認可なしで公開されているメソッドがないこと
     expect(methods.every((m) => m.Properties.AuthorizationType === 'CUSTOM')).toBe(true);
-    // notes 5 + settings 2 + tokens 4
-    expect(methods).toHaveLength(11);
+    // notes 5 + append 1 + tags 1 + settings 2 + tokens 4
+    expect(methods).toHaveLength(13);
   });
 });

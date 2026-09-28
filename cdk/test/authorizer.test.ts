@@ -41,6 +41,7 @@ function storedToken(overrides: Partial<StoredToken> = {}): StoredToken {
     scopes: ['notes:read', 'notes:write'],
     expiresAt: '2026-10-28T00:00:00.000Z',
     revokedAt: null,
+    name: 'Claude Code',
     ...overrides,
   };
 }
@@ -153,6 +154,7 @@ describe('handler (PAT)', () => {
       userId: 'user-sub-123',
       authType: 'pat',
       tokenId: TOKEN_ID,
+      tokenName: 'Claude Code',
       scopes: 'notes:read notes:write',
     });
     expect(store.touchLastUsed).toHaveBeenCalledWith(TOKEN_ID, NOW);
