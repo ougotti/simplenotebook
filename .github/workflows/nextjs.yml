@@ -79,9 +79,19 @@ jobs:
 
       - name: Deploy CDK stack and get outputs
         working-directory: cdk
-        run: npx cdk deploy --require-approval never --outputs-file cdk-outputs.json
+        run: |
+          # MCP のカスタムドメインは GitHub の Environment 変数で指定する(リポジトリには書かない)。
+          # 3 つとも揃っているときだけ渡し、未設定なら HTTP API の既定 URL で動かす
+          CONTEXT_ARGS=()
+          if [[ -n "$MCP_DOMAIN_NAME" && -n "$HOSTED_ZONE_ID" && -n "$HOSTED_ZONE_NAME" ]]; then
+            CONTEXT_ARGS+=(-c "mcpDomainName=$MCP_DOMAIN_NAME" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "hostedZoneName=$HOSTED_ZONE_NAME")
+          fi
+          npx cdk deploy --require-approval never --outputs-file cdk-outputs.json "${CONTEXT_ARGS[@]}"
         env:
           ENVIRONMENT: prod
+          MCP_DOMAIN_NAME: ${{ vars.MCP_DOMAIN_NAME }}
+          HOSTED_ZONE_ID: ${{ vars.HOSTED_ZONE_ID }}
+          HOSTED_ZONE_NAME: ${{ vars.HOSTED_ZONE_NAME }}
       
       - name: Extract stack outputs from CDK outputs file
         working-directory: cdk
@@ -94,9 +104,10 @@ jobs:
           echo "IDENTITY_POOL_ID=$(jq -r ".$STACK_NAME.IdentityPoolId" cdk-outputs.json)" >> $GITHUB_ENV
           echo "COGNITO_DOMAIN=$(jq -r ".$STACK_NAME.CognitoDomain" cdk-outputs.json)" >> $GITHUB_ENV
           echo "NOTES_BUCKET=$(jq -r ".$STACK_NAME.NotesBucketName" cdk-outputs.json)" >> $GITHUB_ENV
-          
+          echo "MCP_URL=$(jq -r ".$STACK_NAME.McpUrl" cdk-outputs.json)" >> $GITHUB_ENV
+
           # Validate that all required outputs were extracted
-          REQUIRED_VARS=("API_URL" "CLIENT_ID" "USER_POOL_ID" "IDENTITY_POOL_ID" "COGNITO_DOMAIN" "NOTES_BUCKET")
+          REQUIRED_VARS=("API_URL" "CLIENT_ID" "USER_POOL_ID" "IDENTITY_POOL_ID" "COGNITO_DOMAIN" "NOTES_BUCKET" "MCP_URL")
           for var in "${REQUIRED_VARS[@]}"; do
             if [[ "${!var}" == "null" ]]; then
               echo "Error: $var is missing or null"
@@ -113,7 +124,8 @@ jobs:
           echo "IDENTITY_POOL_ID: $IDENTITY_POOL_ID"
           echo "COGNITO_DOMAIN: $COGNITO_DOMAIN"
           echo "NOTES_BUCKET: $NOTES_BUCKET"
-      
+          echo "MCP_URL: $MCP_URL"
+
       - name: Generate and validate config.json
         run: |
           # Create public/config directory if it doesn't exist
@@ -129,7 +141,8 @@ jobs:
             "identityPoolId": "${{ env.IDENTITY_POOL_ID }}",
             "region": "ap-northeast-1",
             "notesBucket": "${{ env.NOTES_BUCKET }}",
-            "notesPrefix": "prod/"
+            "notesPrefix": "prod/",
+            "mcpUrl": "${{ env.MCP_URL }}"
           }
           EOF
           

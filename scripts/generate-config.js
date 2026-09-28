@@ -57,6 +57,8 @@ function generateConfig() {
   const identityPoolId = stackOutputs.IdentityPoolId;
   const cognitoDomain = stackOutputs.CognitoDomain;
   const notesBucket = stackOutputs.NotesBucketName;
+  // B-19 より前にデプロイしたスタックには存在しないため任意
+  const mcpUrl = stackOutputs.McpUrl;
 
   // Validate that all required outputs were extracted
   const requiredVars = {
@@ -102,7 +104,8 @@ function generateConfig() {
     identityPoolId: identityPoolId,
     region: 'ap-northeast-1',
     notesBucket: notesBucket,
-    notesPrefix: 'prod/'
+    notesPrefix: 'prod/',
+    ...(mcpUrl ? { mcpUrl } : {})
   };
 
   // Create config directory if it doesn't exist

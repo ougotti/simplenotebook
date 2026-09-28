@@ -254,6 +254,12 @@ class ApiClient {
     });
   }
 
+  /** 接続例に表示する MCP の URL。未提供なら null */
+  async getMcpUrl(): Promise<string | null> {
+    const config = await getConfig();
+    return config.mcpUrl || null;
+  }
+
   /** 接続例に表示する API の URL(末尾のスラッシュなし) */
   async getApiBaseUrl(): Promise<string> {
     if (!this.baseUrl) {

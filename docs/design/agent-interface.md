@@ -317,6 +317,13 @@ POST /notes/{noteId}/append
 - MCP Lambda は `notesService` を直接呼ぶ(REST を HTTP で呼び直さない)
 - スコープはリクエストごとにオーソライザーの context から読み、**`tools/list` では権限のあるツールだけを返す**
 
+> 実装メモ(B-19):
+> - トランスポートは SDK の `WebStandardStreamableHTTPServerTransport`(Web 標準の Request / Response)を使い、HTTP API のイベント(ペイロード 2.0)と相互に変換する。リクエストごとに McpServer を作り、権限のあるツールだけを登録する
+> - MCP のハンドラーは `cdk/lambda/mcp.ts`。`notesService` を共有するため、Notes Lambda と同じアセットの別ハンドラー(`mcp.handler`)にしている
+> - HTTP API のオーソライザーは REST API と同じ関数を、同じ形式(ペイロード 1.0・IAM ポリシー応答・キャッシュ 60 秒)で使う
+> - ステージのスロットリングは 10 rps・バースト 20
+> - カスタムドメインは GitHub の Environment 変数 `MCP_DOMAIN_NAME`・`HOSTED_ZONE_ID`・`HOSTED_ZONE_NAME` が揃っているときだけ作る。`disableExecuteApiEndpoint` は、カスタムドメインでの接続を確認してから別途有効にする
+
 ### 5.2 接続例
 
 Claude Code(PAT):

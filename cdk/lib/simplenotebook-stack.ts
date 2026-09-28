@@ -1,6 +1,12 @@
 import * as cdk from 'aws-cdk-lib';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
+import { HttpLambdaAuthorizer, HttpLambdaResponseType } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
+import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3 from 'aws-cdk-lib/aws-s3';
@@ -288,6 +294,84 @@ export class SimplenotebookStack extends cdk.Stack {
     tokensResource.addResource('self').addMethod('GET', tokensIntegration, authorizedMethodOptions);
     tokensResource.addResource('{tokenId}').addMethod('DELETE', tokensIntegration, authorizedMethodOptions);
 
+    // ---- リモート MCP(B-19) ----
+    // OAuth のディスカバリー(B-20)はホスト直下の /.well-known を探すため、URL にステージ名が入らない
+    // HTTP API($default ステージ)を別に作る。オーソライザーは REST API と同じ関数を共有する
+    const mcpFunction = new lambda.Function(this, 'McpFunction', {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      // notesService を共有するため、Notes Lambda と同じアセットのハンドラーを使う
+      handler: 'mcp.handler',
+      code: lambda.Code.fromAsset('lambda'),
+      memorySize: 512,
+      // HTTP API の統合タイムアウト(30 秒)より短くする
+      timeout: cdk.Duration.seconds(29),
+      environment: {
+        NOTES_BUCKET: notesBucket.bucketName,
+        NOTES_PREFIX: `${environment}/`,
+      },
+    });
+    notesBucket.grantReadWrite(mcpFunction);
+
+    // カスタムドメインは context で受け取る(ドメイン名とゾーン ID はリポジトリに書かない)。
+    // 3 つとも指定されたときだけ作り、未指定なら HTTP API の既定 URL で動かす
+    const mcpDomainName = this.node.tryGetContext('mcpDomainName') as string | undefined;
+    const hostedZoneId = this.node.tryGetContext('hostedZoneId') as string | undefined;
+    const hostedZoneName = this.node.tryGetContext('hostedZoneName') as string | undefined;
+    let mcpDomain: apigwv2.DomainName | undefined;
+    if (mcpDomainName && hostedZoneId && hostedZoneName) {
+      // ホストゾーンは CDK の管理外。fromLookup は使わない(synth 時に Route 53 の参照権限を要求しないため)
+      const hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'HostedZone', {
+        hostedZoneId,
+        zoneName: hostedZoneName,
+      });
+      const certificate = new acm.Certificate(this, 'McpCertificate', {
+        domainName: mcpDomainName,
+        validation: acm.CertificateValidation.fromDns(hostedZone),
+      });
+      mcpDomain = new apigwv2.DomainName(this, 'McpDomainName', {
+        domainName: mcpDomainName,
+        certificate,
+      });
+      new route53.ARecord(this, 'McpAliasRecord', {
+        zone: hostedZone,
+        recordName: mcpDomainName,
+        target: route53.RecordTarget.fromAlias(
+          new route53Targets.ApiGatewayv2DomainProperties(mcpDomain.regionalDomainName, mcpDomain.regionalHostedZoneId)
+        ),
+      });
+    }
+
+    const mcpApi = new apigwv2.HttpApi(this, 'McpApi', {
+      apiName: `simplenotebook-mcp-${environment}`,
+      description: 'Remote MCP endpoint for Simplenotebook',
+      // スロットリングを付けるため、既定ステージは下で自前で作る
+      createDefaultStage: false,
+      // /mcp はブラウザからのアクセスを想定しないため CORS は付けない
+    });
+    new apigwv2.HttpStage(this, 'McpDefaultStage', {
+      httpApi: mcpApi,
+      stageName: '$default',
+      autoDeploy: true,
+      throttle: { rateLimit: 10, burstLimit: 20 },
+      domainMapping: mcpDomain ? { domainName: mcpDomain } : undefined,
+    });
+
+    // REST API と同じ REQUEST 型(ペイロード 1.0・IAM ポリシー応答)で、同じオーソライザー関数を使う
+    const mcpAuthorizer = new HttpLambdaAuthorizer('McpAuthorizer', authorizerFunction, {
+      responseTypes: [HttpLambdaResponseType.IAM],
+      identitySource: ['$request.header.Authorization'],
+      resultsCacheTtl: cdk.Duration.seconds(60),
+    });
+    // GET / DELETE も認証した上で、MCP Lambda が 405 を返す(ステートレスのため SSE とセッションは提供しない)
+    mcpApi.addRoutes({
+      path: '/mcp',
+      methods: [apigwv2.HttpMethod.POST, apigwv2.HttpMethod.GET, apigwv2.HttpMethod.DELETE],
+      integration: new HttpLambdaIntegration('McpIntegration', mcpFunction),
+      authorizer: mcpAuthorizer,
+    });
+
+    const mcpUrl = mcpDomain ? `https://${mcpDomainName}/mcp` : `${mcpApi.apiEndpoint}/mcp`;
+
     // IAM Role for GitHub Actions OIDC
     const githubOidcRole = new iam.Role(this, 'GitHubActionsCdkDeployRole', {
       roleName: 'GitHubActionsCdkDeployRole',
@@ -352,6 +436,12 @@ export class SimplenotebookStack extends cdk.Stack {
     });
 
     // Outputs
+    new cdk.CfnOutput(this, 'McpUrl', {
+      value: mcpUrl,
+      description: 'Remote MCP endpoint URL',
+      exportName: `${id}-McpUrl`,
+    });
+
     new cdk.CfnOutput(this, 'ApiUrl', {
       value: api.url,
       description: 'API Gateway URL',

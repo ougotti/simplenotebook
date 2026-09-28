@@ -74,6 +74,21 @@ function verifyConfig() {
     }
   }
 
+  // mcpUrl は任意(B-19 以降のデプロイで入る)。あれば https の URL であること
+  if (config.mcpUrl !== undefined) {
+    let mcpUrl;
+    try {
+      mcpUrl = new URL(config.mcpUrl);
+    } catch (error) {
+      console.error('❌ Error: mcpUrl is not a valid URL:', config.mcpUrl);
+      process.exit(1);
+    }
+    if (mcpUrl.protocol !== 'https:') {
+      console.error('❌ Error: mcpUrl must use https:', config.mcpUrl);
+      process.exit(1);
+    }
+  }
+
   // Check AWS-specific formats
   try {
     const apiUrl = new URL(config.apiBaseUrl);

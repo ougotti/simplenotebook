@@ -42,6 +42,9 @@ test.describe('エージェント連携 (B-17)', () => {
     const token = await page.getByTestId('issued-token-value').textContent();
     expect(token).toMatch(/^snb_local_[0-9A-HJKMNP-TV-Z]{16}_[A-Za-z0-9_-]{43}$/);
     await expect(page.getByTestId('curl-example')).toContainText(`Authorization: Bearer ${token}`);
+    // MCP の URL が提供されていなければ、MCP の接続例は出さずに案内だけ表示する
+    await expect(page.getByTestId('claude-code-example')).toHaveCount(0);
+    await expect(page.getByTestId('issued-token')).toContainText('MCP サーバーの提供開始後');
 
     const row = page.getByTestId('token-row').filter({ hasText: 'Claude Code (ノートPC)' });
     await expect(row).toHaveAttribute('data-status', 'active');
@@ -83,5 +86,38 @@ test.describe('エージェント連携 (B-17)', () => {
     await expect(row.getByTestId('token-status')).toHaveText('失効済み');
     // 失効済みのトークンには失効ボタンを出さない
     await expect(row.getByRole('button', { name: '失効', exact: true })).toHaveCount(0);
+  });
+});
+
+test.describe('エージェント連携: MCP の接続例 (B-19)', () => {
+  const MCP_URL = 'https://mcp.notes.test/mcp';
+
+  test.beforeEach(async ({ page }) => {
+    // デプロイ後の config.json と同じく mcpUrl が入っている状態にする(ほかの値は開発モードのまま)
+    await page.route('**/config/config.json', async route => {
+      const response = await route.fetch();
+      const config = await response.json();
+      await route.fulfill({ response, json: { ...config, mcpUrl: MCP_URL } });
+    });
+    await seedUserSettings(page);
+    await page.goto(appPath('/settings'));
+    await expect(section(page).getByRole('heading', { name: 'エージェント連携' })).toBeVisible();
+  });
+
+  test('発行直後に Claude Code と Codex の接続例を表示する', async ({ page }) => {
+    await issueToken(page, 'Claude Code', { write: true });
+    const token = await page.getByTestId('issued-token-value').textContent();
+
+    await expect(page.getByTestId('claude-code-example')).toHaveText(
+      `claude mcp add --transport http simplenotebook ${MCP_URL} --header "Authorization: Bearer ${token}"`
+    );
+    const codex = page.getByTestId('codex-example');
+    await expect(codex).toContainText('[mcp_servers.simplenotebook]');
+    await expect(codex).toContainText(`url = "${MCP_URL}"`);
+    await expect(codex).toContainText('bearer_token_env_var = "SIMPLENOTEBOOK_TOKEN"');
+    // 平文のトークンは設定ファイルに書かせない(環境変数で渡す)
+    await expect(codex).not.toContainText(token!);
+    await expect(page.getByTestId('curl-example')).toBeVisible();
+    await expect(page.getByTestId('issued-token')).not.toContainText('MCP サーバーの提供開始後');
   });
 });

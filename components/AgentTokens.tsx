@@ -30,6 +30,34 @@ const STATUS_LABELS: Record<AccessToken['status'], { label: string; className: s
   revoked: { label: '失効済み', className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
 };
 
+type CopyTarget = 'token' | 'curl' | 'claude' | 'codex';
+
+/** トークンを埋め込んだ接続例。MCP の URL がまだ提供されていなければ API を直接呼ぶ例だけにする */
+export function connectionExamples(token: string, apiBaseUrl: string, mcpUrl: string | null) {
+  const examples: { key: CopyTarget; label: string; text: string; testId: string }[] = [];
+  if (mcpUrl) {
+    examples.push({
+      key: 'claude',
+      label: 'Claude Code(ターミナルで実行)',
+      text: `claude mcp add --transport http simplenotebook ${mcpUrl} --header "Authorization: Bearer ${token}"`,
+      testId: 'claude-code-example',
+    });
+    examples.push({
+      key: 'codex',
+      label: 'Codex(~/.codex/config.toml に追記し、環境変数 SIMPLENOTEBOOK_TOKEN にトークンを設定)',
+      text: `[mcp_servers.simplenotebook]\nurl = "${mcpUrl}"\nbearer_token_env_var = "SIMPLENOTEBOOK_TOKEN"`,
+      testId: 'codex-example',
+    });
+  }
+  examples.push({
+    key: 'curl',
+    label: 'API を直接呼ぶ場合',
+    text: `curl -H "Authorization: Bearer ${token}" ${apiBaseUrl || '<API の URL>'}/notes`,
+    testId: 'curl-example',
+  });
+  return examples;
+}
+
 function formatDate(value: string | null): string {
   return value ? new Date(value).toLocaleDateString('ja-JP') : '—';
 }
@@ -46,6 +74,7 @@ export default function AgentTokens() {
   const [error, setError] = useState<string | null>(null);
   const [isLocal, setIsLocal] = useState(false);
   const [apiBaseUrl, setApiBaseUrl] = useState('');
+  const [mcpUrl, setMcpUrl] = useState<string | null>(null);
 
   const [name, setName] = useState('');
   const [scopes, setScopes] = useState<AccessTokenScope[]>(['notes:read']);
@@ -54,7 +83,7 @@ export default function AgentTokens() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const [issued, setIssued] = useState<CreateAccessTokenResponse | null>(null);
-  const [copied, setCopied] = useState<'token' | 'example' | null>(null);
+  const [copied, setCopied] = useState<CopyTarget | null>(null);
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
@@ -73,6 +102,7 @@ export default function AgentTokens() {
     loadTokens();
     apiClient.isLocal().then(setIsLocal).catch(() => undefined);
     apiClient.getApiBaseUrl().then(setApiBaseUrl).catch(() => undefined);
+    apiClient.getMcpUrl().then(setMcpUrl).catch(() => undefined);
   }, []);
 
   function toggleScope(scope: AccessTokenScope) {
@@ -120,7 +150,7 @@ export default function AgentTokens() {
     }
   }
 
-  async function copy(text: string, kind: 'token' | 'example') {
+  async function copy(text: string, kind: CopyTarget) {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(kind);
@@ -130,9 +160,7 @@ export default function AgentTokens() {
     }
   }
 
-  const curlExample = issued
-    ? `curl -H "Authorization: Bearer ${issued.token}" ${apiBaseUrl || '<API の URL>'}/notes`
-    : '';
+  const examples = issued ? connectionExamples(issued.token, apiBaseUrl, mcpUrl) : [];
 
   return (
     <section className="bg-white dark:bg-gray-800 shadow rounded-lg mt-8" data-testid="agent-tokens">
@@ -171,23 +199,33 @@ export default function AgentTokens() {
             </button>
           </div>
 
-          <div className="mt-4">
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">接続例(API を直接呼ぶ場合)</p>
-            <div className="mt-2 flex gap-2 items-start">
-              <code className="flex-1 block break-all text-xs bg-white dark:bg-gray-900 border dark:border-gray-700 rounded p-2 select-all" data-testid="curl-example">
-                {curlExample}
-              </code>
-              <button
-                type="button"
-                onClick={() => copy(curlExample, 'example')}
-                className="text-sm border border-blue-600 text-blue-600 dark:text-blue-400 px-3 py-2 rounded-md hover:bg-blue-50 dark:hover:bg-gray-800"
-              >
-                {copied === 'example' ? 'コピーしました' : 'コピー'}
-              </button>
-            </div>
-            <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-              Claude Code や Codex から MCP で接続する方法は、MCP サーバーの提供開始後にここに表示されます。
-            </p>
+          <div className="mt-4 space-y-3">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">接続例</p>
+            {examples.map(example => (
+              <div key={example.key}>
+                <p className="text-xs text-gray-700 dark:text-gray-300">{example.label}</p>
+                <div className="mt-1 flex gap-2 items-start">
+                  <code
+                    className="flex-1 block whitespace-pre-wrap break-all text-xs bg-white dark:bg-gray-900 border dark:border-gray-700 rounded p-2 select-all"
+                    data-testid={example.testId}
+                  >
+                    {example.text}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => copy(example.text, example.key)}
+                    className="text-sm border border-blue-600 text-blue-600 dark:text-blue-400 px-3 py-2 rounded-md hover:bg-blue-50 dark:hover:bg-gray-800"
+                  >
+                    {copied === example.key ? 'コピーしました' : 'コピー'}
+                  </button>
+                </div>
+              </div>
+            ))}
+            {!mcpUrl && (
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                Claude Code や Codex から MCP で接続する方法は、MCP サーバーの提供開始後にここに表示されます。
+              </p>
+            )}
           </div>
 
           <div className="mt-4 flex justify-end">
