@@ -11,8 +11,15 @@ interface Note {
   title: string;
   content: string;
   tags?: string[];
+  pinned?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+// ピン留めの切り替えだけのリクエストか(内容が変わらないので updatedAt を動かさない)
+function isPinOnlyUpdate(noteData: Partial<Note> | undefined): boolean {
+  const keys = Object.keys(noteData ?? {});
+  return keys.length > 0 && keys.every(key => key === 'pinned');
 }
 
 const MAX_TAGS = 20;
@@ -149,6 +156,7 @@ async function listNotes(userPrefix: string): Promise<APIGatewayProxyResult> {
         title: note.title,
         // S3 上のデータが壊れていても型不整合を返さないよう読み出し側でも正規化する
         tags: sanitizeTags(note.tags),
+        pinned: note.pinned === true,
         createdAt: note.createdAt,
         updatedAt: note.updatedAt,
       };
@@ -174,6 +182,7 @@ async function createNote(userPrefix: string, noteData: Partial<Note>): Promise<
     title: noteData.title || 'Untitled',
     content: noteData.content || '',
     tags: sanitizeTags(noteData.tags),
+    pinned: noteData.pinned === true,
     createdAt: now,
     updatedAt: now,
   };
@@ -278,8 +287,10 @@ async function updateNote(userPrefix: string, noteId?: string, noteData?: Partia
       id: existingNote.id, // Prevent ID change
       // 既存データ側が壊れている場合も含めて、保存前に必ず正規化する
       tags: sanitizeTags(noteData?.tags !== undefined ? noteData.tags : existingNote.tags),
+      // boolean 以外が送られても true/false に正規化して保存する
+      pinned: noteData?.pinned !== undefined ? noteData.pinned === true : existingNote.pinned === true,
       createdAt: existingNote.createdAt, // Prevent creation date change
-      updatedAt: new Date().toISOString(),
+      updatedAt: isPinOnlyUpdate(noteData) ? existingNote.updatedAt : new Date().toISOString(),
     };
 
     const putCommand = new PutObjectCommand({

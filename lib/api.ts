@@ -7,6 +7,8 @@ export interface Note {
   content: string;
   /** 旧データにはフィールド自体が存在しないため optional (タグなしは [] 扱い) */
   tags?: string[];
+  /** 旧データにはフィールド自体が存在しないため optional (未指定は未ピン扱い) */
+  pinned?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -17,8 +19,8 @@ export interface UserSettings {
   updatedAt: string;
 }
 
-/** 一覧表示用サマリ。tags を常に string[] に正規化済みで保持する */
-export type NoteSummary = Omit<Note, 'content' | 'tags'> & { tags: string[] };
+/** 一覧表示用サマリ。tags は string[]、pinned は boolean に正規化済みで保持する */
+export type NoteSummary = Omit<Note, 'content' | 'tags' | 'pinned'> & { tags: string[]; pinned: boolean };
 
 export interface NotesListResponse {
   notes: NoteSummary[];

@@ -6,9 +6,9 @@ import { apiClient, Note, NoteSummary } from '../lib/api';
 // API 応答から一覧用サマリを作る。content だけを除外し、それ以外のフィールドは
 // 自動的に引き継ぐことで、Note にフィールドが増えたときの反映漏れを防ぐ
 // (スプリント2で tags の落とし漏れが実際に発生したための対策)。
-function toNoteSummary(note: Note): NoteSummary {
+function toNoteSummary(note: Omit<Note, 'content'> & { content?: string }): NoteSummary {
   const { content, ...summary } = note;
-  return { ...summary, tags: note.tags ?? [] };
+  return { ...summary, tags: note.tags ?? [], pinned: note.pinned === true };
 }
 
 export function useNotes() {
@@ -21,7 +21,7 @@ export function useNotes() {
     setError(null);
     try {
       const response = await apiClient.listNotes();
-      setNotes(response.notes.map(n => ({ ...n, tags: n.tags ?? [] })));
+      setNotes(response.notes.map(toNoteSummary));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch notes');
     } finally {

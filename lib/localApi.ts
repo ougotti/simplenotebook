@@ -7,6 +7,11 @@ function generateNoteId(): string {
   return `note-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
+function isPinOnlyUpdate(noteData: Partial<Note>): boolean {
+  const keys = Object.keys(noteData);
+  return keys.length > 0 && keys.every(key => key === 'pinned');
+}
+
 function getStoredNotes(): Note[] {
   try {
     const stored = localStorage.getItem(NOTES_KEY);
@@ -28,6 +33,7 @@ export class LocalApiClient {
         id: note.id,
         title: note.title,
         tags: note.tags ?? [],
+        pinned: note.pinned === true,
         createdAt: note.createdAt,
         updatedAt: note.updatedAt,
       })),
@@ -54,6 +60,7 @@ export class LocalApiClient {
       title: noteData.title || 'Untitled',
       content: noteData.content || '',
       tags: noteData.tags ?? [],
+      pinned: noteData.pinned === true,
       createdAt: now,
       updatedAt: now,
     };
@@ -78,7 +85,9 @@ export class LocalApiClient {
       title: noteData.title !== undefined ? noteData.title : existingNote.title,
       content: noteData.content !== undefined ? noteData.content : existingNote.content,
       tags: noteData.tags !== undefined ? noteData.tags : existingNote.tags ?? [],
-      updatedAt: new Date().toISOString(),
+      pinned: noteData.pinned !== undefined ? noteData.pinned === true : existingNote.pinned === true,
+      // ピン留めの切り替えだけでは内容が変わらないため、更新日時(並び順)を動かさない
+      updatedAt: isPinOnlyUpdate(noteData) ? existingNote.updatedAt : new Date().toISOString(),
     };
     
     notes[noteIndex] = updatedNote;
