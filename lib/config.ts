@@ -7,6 +7,8 @@ interface AppConfig {
   region: string;
   notesBucket: string;
   notesPrefix: string;
+  /** リモート MCP の URL。B-19 より前のデプロイ・開発モードでは存在しない */
+  mcpUrl?: string;
 }
 
 let config: AppConfig | null = null;

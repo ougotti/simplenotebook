@@ -2,8 +2,8 @@ import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { SimplenotebookStack } from '../lib/simplenotebook-stack';
 
-function synth(environment: string): Template {
-  const app = new cdk.App();
+function synth(environment: string, context: Record<string, string> = {}): Template {
+  const app = new cdk.App({ context });
   const stack = new SimplenotebookStack(app, `TestStack-${environment}`, {
     environment,
     env: { account: '123456789012', region: 'ap-northeast-1' },
@@ -117,5 +117,87 @@ describe('認証用テーブル', () => {
     expect(methods.every((m) => m.Properties.AuthorizationType === 'CUSTOM')).toBe(true);
     // notes 5 + append 1 + tags 1 + settings 2 + tokens 4
     expect(methods).toHaveLength(13);
+  });
+});
+
+describe('リモート MCP(HTTP API)', () => {
+  let template: Template;
+  let withDomain: Template;
+  beforeAll(() => {
+    template = synth('prod');
+    withDomain = synth('prod', {
+      mcpDomainName: 'mcp.notes.example.test',
+      hostedZoneId: 'Z0000000000TEST',
+      hostedZoneName: 'notes.example.test',
+    });
+  }, 120_000);
+
+  it('$default ステージにスロットリングを付け、自動デプロイする', () => {
+    template.hasResourceProperties('AWS::ApiGatewayV2::Stage', {
+      StageName: '$default',
+      AutoDeploy: true,
+      DefaultRouteSettings: Match.objectLike({ ThrottlingRateLimit: 10, ThrottlingBurstLimit: 20 }),
+    });
+  });
+
+  it('/mcp の POST・GET・DELETE だけがあり、すべてオーソライザー付き', () => {
+    const routes = Object.values(template.findResources('AWS::ApiGatewayV2::Route')).map((r) => r.Properties);
+    expect(routes.map((r) => r.RouteKey).sort()).toEqual(['DELETE /mcp', 'GET /mcp', 'POST /mcp']);
+    expect(routes.every((r) => r.AuthorizationType === 'CUSTOM' && r.AuthorizerId)).toBe(true);
+  });
+
+  it('オーソライザーは REST API と同じ関数・同じ形式(ペイロード 1.0、IAM ポリシー応答、キャッシュ 60 秒)', () => {
+    template.hasResourceProperties('AWS::ApiGatewayV2::Authorizer', {
+      AuthorizerType: 'REQUEST',
+      AuthorizerPayloadFormatVersion: '1.0',
+      AuthorizerResultTtlInSeconds: 60,
+      IdentitySource: ['$request.header.Authorization'],
+    });
+    const authorizer = Object.values(template.findResources('AWS::ApiGatewayV2::Authorizer'))[0];
+    expect(authorizer.Properties.EnableSimpleResponses).not.toBe(true);
+    // REST API のオーソライザーと同じ Lambda 関数を指している
+    const functions = template.findResources('AWS::Lambda::Function', {
+      Properties: { Environment: { Variables: Match.objectLike({ USER_POOL_ID: Match.anyValue() }) } },
+    });
+    expect(Object.keys(functions)).toHaveLength(1);
+    expect(JSON.stringify(authorizer.Properties.AuthorizerUri)).toContain(Object.keys(functions)[0]);
+  });
+
+  it('MCP Lambda は notesService と同じアセットの mcp.handler で、認証テーブルの権限を持たない', () => {
+    const functions = template.findResources('AWS::Lambda::Function', { Properties: { Handler: 'mcp.handler' } });
+    expect(Object.keys(functions)).toHaveLength(1);
+    const [id, fn] = Object.entries(functions)[0];
+    expect(fn.Properties.Timeout).toBe(29);
+    const roleId = fn.Properties.Role['Fn::GetAtt'][0];
+    const actions = Object.values(template.findResources('AWS::IAM::Policy'))
+      .filter((policy) => policy.Properties.Roles.some((role: { Ref: string }) => role.Ref === roleId))
+      .flatMap((policy) => policy.Properties.PolicyDocument.Statement)
+      .flatMap((s: { Action: string | string[] }) => [s.Action].flat());
+    expect(actions.some((action: string) => action.startsWith('dynamodb:'))).toBe(false);
+    expect(actions.some((action: string) => action.startsWith('s3:'))).toBe(true);
+    expect(id).toBeDefined();
+  });
+
+  it('context がなければカスタムドメインを作らず、既定 URL を出力する', () => {
+    template.resourceCountIs('AWS::CertificateManager::Certificate', 0);
+    template.resourceCountIs('AWS::ApiGatewayV2::DomainName', 0);
+    template.resourceCountIs('AWS::Route53::RecordSet', 0);
+    const output = template.findOutputs('McpUrl').McpUrl;
+    expect(JSON.stringify(output.Value)).toContain('/mcp');
+  });
+
+  it('context があれば証明書・ドメイン・マッピング・ALIAS レコードを作り、その URL を出力する', () => {
+    withDomain.hasResourceProperties('AWS::CertificateManager::Certificate', {
+      DomainName: 'mcp.notes.example.test',
+      ValidationMethod: 'DNS',
+    });
+    withDomain.hasResourceProperties('AWS::ApiGatewayV2::DomainName', { DomainName: 'mcp.notes.example.test' });
+    withDomain.resourceCountIs('AWS::ApiGatewayV2::ApiMapping', 1);
+    withDomain.hasResourceProperties('AWS::Route53::RecordSet', {
+      Name: 'mcp.notes.example.test.',
+      Type: 'A',
+      HostedZoneId: 'Z0000000000TEST',
+    });
+    expect(withDomain.findOutputs('McpUrl').McpUrl.Value).toBe('https://mcp.notes.example.test/mcp');
   });
 });
