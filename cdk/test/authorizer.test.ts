@@ -158,10 +158,16 @@ describe('handler (PAT)', () => {
     expect(store.touchLastUsed).toHaveBeenCalledWith(TOKEN_ID, NOW);
   });
 
-  it('保存データに未知のスコープがあっても context には載せない', async () => {
-    const store = makeStore(storedToken({ scopes: ['notes:read', 'admin:all'] }));
+  it('保存データに未知のスコープや notes:delete があっても context には載せない', async () => {
+    const store = makeStore(storedToken({ scopes: ['notes:read', 'notes:delete', 'admin:all'] }));
     const result = await makeHandler(store)(makeEvent({ Authorization: `Bearer ${PAT}` }));
     expect(result.context?.scopes).toBe('notes:read');
+  });
+
+  it('保存データの scopes が配列でなければスコープなしとして扱う', async () => {
+    const store = makeStore(storedToken({ scopes: 'notes:read notes:delete' as unknown as string[] }));
+    const result = await makeHandler(store)(makeEvent({ Authorization: `Bearer ${PAT}` }));
+    expect(result.context?.scopes).toBe('');
   });
 
   it.each([

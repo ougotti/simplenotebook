@@ -36,8 +36,9 @@ export interface AuthorizerDeps {
 
 // ブラウザ(Cognito JWT)には全スコープを与え、現行の挙動を変えない
 const COGNITO_SCOPES = 'notes:read notes:write notes:delete';
-// PAT の context に載せてよいスコープ。保存データが壊れていても未知のスコープは通さない
-const KNOWN_SCOPES = new Set(['notes:read', 'notes:write', 'notes:delete']);
+// PAT の context に載せてよいスコープ。notes:delete は PAT に許可しない(設計書 8 章 2)。
+// 発行 API でも弾いているが、保存データが壊れていたり手で投入されたりしても権限が広がらないよう、ここでも絞る
+const PAT_ALLOWED_SCOPES = new Set(['notes:read', 'notes:write']);
 
 /**
  * PAT の形式: snb_<env>_<tokenId>_<secret>
@@ -134,7 +135,7 @@ async function verifyPat(token: string, deps: AuthorizerDeps, now: Date): Promis
     userId: stored.userId,
     authType: 'pat',
     tokenId: stored.tokenId,
-    scopes: stored.scopes.filter((scope) => KNOWN_SCOPES.has(scope)).join(' '),
+    scopes: (Array.isArray(stored.scopes) ? stored.scopes : []).filter((scope) => PAT_ALLOWED_SCOPES.has(scope)).join(' '),
   };
 }
 
