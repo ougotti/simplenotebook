@@ -27,7 +27,8 @@ function NewNotePageContent() {
   const [showPreview, setShowPreview] = useState(false)
   const [pendingDeleteNoteId, setPendingDeleteNoteId] = useState<string | null>(null)
   const [sortKey, setSortKey] = useState<NoteSortKey>(DEFAULT_NOTE_SORT)
-  const [pinningNoteId, setPinningNoteId] = useState<string | null>(null)
+  // 別々のノートのピン更新は並行して走り得るため、更新中の ID をすべて保持する
+  const [pinningNoteIds, setPinningNoteIds] = useState<ReadonlySet<string>>(new Set())
 
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -166,13 +167,18 @@ function NewNotePageContent() {
   }
 
   async function handleTogglePin(noteId: string, pinned: boolean) {
-    setPinningNoteId(noteId)
+    if (pinningNoteIds.has(noteId)) return
+    setPinningNoteIds(prev => new Set(prev).add(noteId))
     try {
       await updateNote(noteId, { pinned: !pinned })
     } catch (err) {
       setMessage('ピン留めの変更に失敗しました。もう一度お試しください。')
     } finally {
-      setPinningNoteId(null)
+      setPinningNoteIds(prev => {
+        const next = new Set(prev)
+        next.delete(noteId)
+        return next
+      })
     }
   }
 
@@ -442,7 +448,7 @@ function NewNotePageContent() {
                   <button
                     type="button"
                     onClick={() => handleTogglePin(note.id, note.pinned)}
-                    disabled={isSaving || pinningNoteId === note.id}
+                    disabled={isSaving || pinningNoteIds.has(note.id)}
                     aria-pressed={note.pinned}
                     aria-label={note.pinned ? 'ピン留めを解除' : 'ピン留め'}
                     title={note.pinned ? 'ピン留めを解除' : 'ピン留め'}
