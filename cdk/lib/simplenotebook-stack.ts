@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -181,7 +182,24 @@ export class SimplenotebookStack extends cdk.Stack {
       },
     });
 
-    // Lambda オーソライザー(現状は Cognito ID トークンのみ。将来 PAT / OAuth トークンもここで検証する)
+    // 認証用テーブル(アクセストークン。将来 OAuth の状態も置く)。ノート本体は S3 のまま
+    const authTable = new dynamodb.Table(this, 'AuthTable', {
+      tableName: `simplenotebook-auth-${environment}`,
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      timeToLiveAttribute: 'ttl',
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: environment === 'prod' },
+      removalPolicy: environment === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+    });
+    // ユーザーごとのトークン一覧(GSI1PK = USER#<sub>, GSI1SK = TOKEN#<createdAt>)
+    authTable.addGlobalSecondaryIndex({
+      indexName: 'GSI1',
+      partitionKey: { name: 'GSI1PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'GSI1SK', type: dynamodb.AttributeType.STRING },
+    });
+
+    // Lambda オーソライザー(Cognito ID トークンと PAT を検証する)
     const authorizerFunction = new lambda.Function(this, 'AuthorizerFunction', {
       runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'index.handler',
@@ -189,8 +207,43 @@ export class SimplenotebookStack extends cdk.Stack {
       environment: {
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        AUTH_TABLE_NAME: authTable.tableName,
+        ENVIRONMENT: environment,
       },
     });
+
+    // オーソライザーは最小権限: トークンの読み取りと、lastUsedAt だけの更新(ノートの S3 には権限なし)
+    authorizerFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:GetItem'],
+      resources: [authTable.tableArn],
+    }));
+    authorizerFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:UpdateItem'],
+      resources: [authTable.tableArn],
+      conditions: {
+        'ForAllValues:StringEquals': { 'dynamodb:Attributes': ['PK', 'SK', 'lastUsedAt'] },
+        StringEqualsIfExists: { 'dynamodb:ReturnValues': 'NONE' },
+      },
+    }));
+
+    // トークン管理 API(発行・一覧・失効)
+    const tokensFunction = new lambda.Function(this, 'TokensFunction', {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('tokens'),
+      environment: {
+        AUTH_TABLE_NAME: authTable.tableName,
+        ENVIRONMENT: environment,
+      },
+    });
+    tokensFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem'],
+      resources: [authTable.tableArn],
+    }));
+    tokensFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:Query'],
+      resources: [`${authTable.tableArn}/index/GSI1`],
+    }));
 
     const authorizer = new apigateway.RequestAuthorizer(this, 'RequestAuthorizer', {
       handler: authorizerFunction,
@@ -224,6 +277,14 @@ export class SimplenotebookStack extends cdk.Stack {
     // Settings API Methods
     settingsResource.addMethod('GET', lambdaIntegration, authorizedMethodOptions);
     settingsResource.addMethod('PUT', lambdaIntegration, authorizedMethodOptions);
+
+    // Tokens API(/tokens/self 以外は Cognito のみ。判定は Tokens Lambda で行う)
+    const tokensIntegration = new apigateway.LambdaIntegration(tokensFunction);
+    const tokensResource = api.root.addResource('tokens');
+    tokensResource.addMethod('GET', tokensIntegration, authorizedMethodOptions);
+    tokensResource.addMethod('POST', tokensIntegration, authorizedMethodOptions);
+    tokensResource.addResource('self').addMethod('GET', tokensIntegration, authorizedMethodOptions);
+    tokensResource.addResource('{tokenId}').addMethod('DELETE', tokensIntegration, authorizedMethodOptions);
 
     // IAM Role for GitHub Actions OIDC
     const githubOidcRole = new iam.Role(this, 'GitHubActionsCdkDeployRole', {
