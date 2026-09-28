@@ -10,6 +10,9 @@ import ThemeToggle from '../../../components/ThemeToggle'
 import SearchBox from '../../../components/SearchBox'
 import TagInput from '../../../components/TagInput'
 import MarkdownPreview from '../../../components/MarkdownPreview'
+import { NoteSortKey, NOTE_SORT_OPTIONS, DEFAULT_NOTE_SORT, isNoteSortKey, sortNotes } from '../../../lib/noteSort'
+
+const SORT_STORAGE_KEY = 'note-sort'
 
 function NewNotePageContent() {
   const [content, setContent] = useState('')
@@ -23,16 +26,43 @@ function NewNotePageContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [pendingDeleteNoteId, setPendingDeleteNoteId] = useState<string | null>(null)
-  
+  const [sortKey, setSortKey] = useState<NoteSortKey>(DEFAULT_NOTE_SORT)
+  const [pinningNoteId, setPinningNoteId] = useState<string | null>(null)
+
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user, signOut, isLocal } = useAuth()
   const { notes, loading, error, createNote, updateNote, deleteNote, getNote, fetchNotes } = useNotes()
   const { query, setQuery, filteredNotes, isSearching } = useNoteSearch(notes, getNote)
   // キーワード検索の結果にタグ絞り込みを重ねる (両方指定時は AND 条件)
-  const visibleNotes = selectedTag
-    ? filteredNotes.filter(note => (note.tags ?? []).includes(selectedTag))
-    : filteredNotes
+  const visibleNotes = sortNotes(
+    selectedTag
+      ? filteredNotes.filter(note => (note.tags ?? []).includes(selectedTag))
+      : filteredNotes,
+    sortKey
+  )
+
+  // 並び順はこの端末の表示設定として localStorage に保持する
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(SORT_STORAGE_KEY)
+      if (isNoteSortKey(saved)) {
+        setSortKey(saved)
+      }
+    } catch {
+      // ストレージが使えない環境では既定の並び順のまま
+    }
+  }, [])
+
+  function handleSortChange(value: string) {
+    if (!isNoteSortKey(value)) return
+    setSortKey(value)
+    try {
+      window.localStorage.setItem(SORT_STORAGE_KEY, value)
+    } catch {
+      // 保存できなくても今回の表示には反映済み
+    }
+  }
 
   // Handle OAuth callback
   useEffect(() => {
@@ -132,6 +162,17 @@ function NewNotePageContent() {
       }
     } catch (err) {
       setMessage('ノートの読み込みに失敗しました。')
+    }
+  }
+
+  async function handleTogglePin(noteId: string, pinned: boolean) {
+    setPinningNoteId(noteId)
+    try {
+      await updateNote(noteId, { pinned: !pinned })
+    } catch (err) {
+      setMessage('ピン留めの変更に失敗しました。もう一度お試しください。')
+    } finally {
+      setPinningNoteId(null)
     }
   }
 
@@ -322,6 +363,24 @@ function NewNotePageContent() {
 
           <SearchBox value={query} onChange={setQuery} />
 
+          <div className="flex justify-end">
+            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+              並び順
+              <select
+                value={sortKey}
+                onChange={e => handleSortChange(e.target.value)}
+                className="border dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-800"
+                data-testid="note-sort"
+              >
+                {NOTE_SORT_OPTIONS.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           {selectedTag && (
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
               <span>タグで絞り込み:</span>
@@ -369,8 +428,29 @@ function NewNotePageContent() {
 
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {visibleNotes.map((note) => (
-              <div key={note.id} className="border dark:border-gray-700 rounded p-3 hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div
+                key={note.id}
+                className={`border rounded p-3 hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                  note.pinned
+                    ? 'border-amber-300 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-900/10'
+                    : 'dark:border-gray-700'
+                }`}
+                data-testid="note-card"
+                data-pinned={note.pinned}
+              >
                 <div className="flex justify-between items-start">
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePin(note.id, note.pinned)}
+                    disabled={isSaving || pinningNoteId === note.id}
+                    aria-pressed={note.pinned}
+                    aria-label={note.pinned ? 'ピン留めを解除' : 'ピン留め'}
+                    title={note.pinned ? 'ピン留めを解除' : 'ピン留め'}
+                    className={`mr-2 text-sm leading-none ${note.pinned ? '' : 'opacity-30 grayscale hover:opacity-70'}`}
+                    data-testid="pin-toggle"
+                  >
+                    📌
+                  </button>
                   <div className="flex-1">
                     <h3 className="font-medium text-sm">{note.title}</h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
