@@ -47,7 +47,10 @@ jobs:
         with:
           node-version: "22"
           cache: 'npm'
-          cache-dependency-path: cdk/package-lock.json
+          cache-dependency-path: |
+            cdk/package-lock.json
+            cdk/lambda/package-lock.json
+            cdk/authorizer/package-lock.json
       
       - name: Install CDK dependencies
         working-directory: cdk
@@ -63,11 +66,11 @@ jobs:
 
       - name: Install Lambda dependencies
         working-directory: cdk/lambda
-        run: npm install --production
+        run: npm ci --omit=dev
 
       - name: Install Authorizer dependencies
         working-directory: cdk/authorizer
-        run: npm install --production
+        run: npm ci --omit=dev
 
       - name: Deploy CDK stack and get outputs
         working-directory: cdk
