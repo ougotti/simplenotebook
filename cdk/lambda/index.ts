@@ -44,6 +44,30 @@ interface UserSettings {
   updatedAt: string;
 }
 
+// ルートごとに必要な権限。'cognito' はブラウザのログインでのみ許可する(PAT では不可)
+const ROUTE_PERMISSIONS: Record<string, string> = {
+  'GET /notes': 'notes:read',
+  'GET /notes/{noteId}': 'notes:read',
+  'POST /notes': 'notes:write',
+  'PUT /notes/{noteId}': 'notes:write',
+  'DELETE /notes/{noteId}': 'notes:delete',
+  'GET /users/me/settings': 'cognito',
+  'PUT /users/me/settings': 'cognito',
+};
+
+/**
+ * オーソライザーの context(authType・scopes)でルートの実行可否を判定する。
+ * オーソライザーのポリシーはキャッシュされて他のメソッドにも使い回されるため、判定はここで行う。
+ * 未知のルートは権限判定の対象外(後段で 405 になる)。
+ */
+export function isRouteAllowed(route: string, authorizer: { authType?: unknown; scopes?: unknown } | null | undefined): boolean {
+  const required = ROUTE_PERMISSIONS[route];
+  if (!required) return true;
+  if (required === 'cognito') return authorizer?.authType === 'cognito';
+  const scopes = typeof authorizer?.scopes === 'string' ? authorizer.scopes.split(' ') : [];
+  return scopes.includes(required);
+}
+
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     // Lambda オーソライザーが検証済みのユーザー ID を context で渡す
@@ -61,7 +85,18 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const httpMethod = event.httpMethod;
     const resource = event.resource;
-    
+
+    if (!isRouteAllowed(`${httpMethod} ${resource}`, event.requestContext.authorizer)) {
+      return {
+        statusCode: 403,
+        headers: {
+          'Access-Control-Allow-Origin': 'https://ougotti.github.io',
+          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+        },
+        body: JSON.stringify({ error: 'Forbidden', message: 'このトークンにはこの操作の権限がありません' }),
+      };
+    }
+
     // Sanitize user ID to prevent path traversal
     const sanitizedUserId = userId.replace(/[^a-zA-Z0-9-]/g, '');
     const userPrefix = `${NOTES_PREFIX}${sanitizedUserId}/`;
