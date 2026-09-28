@@ -62,6 +62,8 @@ export interface CreateAccessTokenResponse {
 export class ApiError extends Error {
   constructor(message: string, public status: number, public serverMessage?: string) {
     super(message);
+    // ES5 へトランスパイルされると Error 継承のプロトタイプが切れ、instanceof ApiError が false になるため明示的に設定する
+    Object.setPrototypeOf(this, new.target.prototype);
     this.name = 'ApiError';
   }
 }
