@@ -30,6 +30,42 @@ export interface NoteResponse {
   note: Note;
 }
 
+/** PAT に付与できるスコープ(notes:delete は PAT に付与できない) */
+export type AccessTokenScope = 'notes:read' | 'notes:write';
+
+/** トークン管理 API が返すトークン情報(秘密情報は含まない) */
+export interface AccessToken {
+  tokenId: string;
+  kind: string;
+  name: string;
+  scopes: string[];
+  createdAt: string;
+  expiresAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  status: 'active' | 'expired' | 'revoked';
+}
+
+export interface CreateAccessTokenInput {
+  name: string;
+  scopes: AccessTokenScope[];
+  expiresInDays: number;
+}
+
+export interface CreateAccessTokenResponse {
+  /** 平文のトークン。このレスポンスでしか取得できない */
+  token: string;
+  tokenInfo: AccessToken;
+}
+
+/** API のエラー。message は従来どおり "API request failed: <status> ..." の形で、サーバーの説明は serverMessage に入る */
+export class ApiError extends Error {
+  constructor(message: string, public status: number, public serverMessage?: string) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 class ApiClient {
   private baseUrl: string = '';
   private accessToken: string = '';
@@ -87,7 +123,14 @@ class ApiClient {
       if (response.status === 401) {
         throw new Error('Unauthorized - please sign in again');
       }
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      let serverMessage: string | undefined;
+      try {
+        const body = await response.json();
+        if (typeof body?.message === 'string') serverMessage = body.message;
+      } catch {
+        // 本文が JSON でなければ説明なし
+      }
+      throw new ApiError(`API request failed: ${response.status} ${response.statusText}`, response.status, serverMessage);
     }
 
     if (response.status === 204) {
@@ -180,6 +223,41 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(settings),
     });
+  }
+
+  async listAccessTokens(): Promise<AccessToken[]> {
+    if (await this.getLocalMode()) {
+      return this.localClient.listAccessTokens();
+    }
+    const response = await this.request<{ tokens: AccessToken[] }>('/tokens');
+    return response.tokens;
+  }
+
+  async createAccessToken(input: CreateAccessTokenInput): Promise<CreateAccessTokenResponse> {
+    if (await this.getLocalMode()) {
+      return this.localClient.createAccessToken(input);
+    }
+    return this.request<CreateAccessTokenResponse>('/tokens', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async revokeAccessToken(tokenId: string): Promise<void> {
+    if (await this.getLocalMode()) {
+      return this.localClient.revokeAccessToken(tokenId);
+    }
+    await this.request(`/tokens/${encodeURIComponent(tokenId)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /** 接続例に表示する API の URL(末尾のスラッシュなし) */
+  async getApiBaseUrl(): Promise<string> {
+    if (!this.baseUrl) {
+      await this.initialize();
+    }
+    return this.baseUrl.replace(/\/+$/, '');
   }
 
   async isLocal(): Promise<boolean> {
