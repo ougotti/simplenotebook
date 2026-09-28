@@ -39,14 +39,18 @@ async function expectServiceError(promise: Promise<unknown>, status: number, cod
 describe('parseNoteInput', () => {
   it('title・content・tags・pinned だけを取り出し、それ以外は無視する', () => {
     expect(parseNoteInput({
-      title: 't', content: 'c', tags: [' a ', 'a', 1], pinned: 'yes', id: 'x', createdAt: 'x', evil: true,
-    })).toEqual({ title: 't', content: 'c', tags: ['a'], pinned: false });
+      title: 't', content: 'c', tags: [' a ', 'a', ''], pinned: true, id: 'x', createdAt: 'x', evil: true,
+    })).toEqual({ title: 't', content: 'c', tags: ['a'], pinned: true });
   });
 
   it('型が違えば 400、上限を超えたら 413', () => {
     expect(() => parseNoteInput([])).toThrow(ServiceError);
     expect(() => parseNoteInput({ title: 1 })).toThrow('title must be a string');
     expect(() => parseNoteInput({ content: {} })).toThrow('content must be a string');
+    expect(() => parseNoteInput({ tags: 'a' })).toThrow('tags must be an array of strings');
+    expect(() => parseNoteInput({ tags: ['a', 1] })).toThrow('tags must be an array of strings');
+    expect(() => parseNoteInput({ pinned: 'yes' })).toThrow('pinned must be a boolean');
+    expect(() => parseNoteInput({ pinned: 1 })).toThrow('pinned must be a boolean');
     try {
       parseNoteInput({ title: 'a'.repeat(201) });
       fail('should throw');

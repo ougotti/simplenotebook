@@ -6,7 +6,7 @@ import {
   createNotesService,
   NotesServiceOptions,
   parseNoteInput,
-  sanitizeNoteId,
+  validateNoteId,
   SearchOptions,
   ServiceError,
 } from './notesService';
@@ -22,12 +22,26 @@ interface UserSettings {
   updatedAt: string;
 }
 
+// API Gateway の CORS 設定(simplenotebook-stack.ts の defaultCorsPreflightOptions)と揃える
+const ALLOWED_ORIGINS = ['https://ougotti.github.io', 'http://localhost:3000'];
+const DEFAULT_ORIGIN = ALLOWED_ORIGINS[0];
+
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-  'Access-Control-Allow-Headers': 'Authorization,Content-Type,If-Match',
+  'Access-Control-Allow-Headers': 'Authorization,Content-Type,X-Requested-With,If-Match',
   // ブラウザから ETag を読めるようにする
   'Access-Control-Expose-Headers': 'ETag',
 };
+
+/** リクエストの Origin が許可済みならそれを、そうでなければ既定のオリジンを返す(任意のオリジンは許可しない) */
+export function corsHeadersFor(requestHeaders: APIGatewayProxyEvent['headers'] | null | undefined): Record<string, string> {
+  const origin = headerValue(requestHeaders ?? {}, 'Origin');
+  return {
+    ...CORS_HEADERS,
+    'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.includes(origin) ? origin : DEFAULT_ORIGIN,
+    // オリジンによって応答が変わるため、キャッシュがオリジンをまたいで使い回さないようにする
+    Vary: 'Origin',
+  };
+}
 
 type ErrorCode =
   | 'UNAUTHORIZED'
@@ -43,7 +57,8 @@ type ErrorCode =
 function json(statusCode: number, body: unknown, headers: Record<string, string> = {}): APIGatewayProxyResult {
   return {
     statusCode,
-    headers: { ...CORS_HEADERS, ...headers },
+    // CORS ヘッダーはリクエストの Origin に依存するため、handler の最後でまとめて付ける
+    headers,
     body: body === undefined ? '' : JSON.stringify(body),
   };
 }
@@ -153,7 +168,7 @@ function validateDisplayName(input: string): { isValid: boolean; displayName?: s
   }
 
   // 制御文字とゼロ幅文字を除外
-  const controlCharRegex = /[\u0000-\u001F\u007F-\u009F­؜᠎​-‏‪-‮⁠-⁯﻿￹-￻]/g;
+  const controlCharRegex = /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\uFFF9-\uFFFB]/g;
   displayName = displayName.replace(controlCharRegex, '');
 
   // 再度空文字チェック（制御文字除去後）
@@ -220,6 +235,11 @@ export function createHandler(storage: ObjectStorage, options: HandlerOptions) {
   }
 
   return async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    const result = await dispatch(event);
+    return { ...result, headers: { ...corsHeadersFor(event.headers), ...result.headers } };
+  };
+
+  async function dispatch(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
     const route = `${event.httpMethod} ${event.resource}`;
     try {
       if (event.httpMethod === 'OPTIONS') {
@@ -260,12 +280,12 @@ export function createHandler(storage: ObjectStorage, options: HandlerOptions) {
         }
 
         case 'GET /notes/{noteId}': {
-          const { note, etag } = await notes.getNote(sanitizeNoteId(event.pathParameters?.noteId));
+          const { note, etag } = await notes.getNote(validateNoteId(event.pathParameters?.noteId));
           return json(200, { note }, { ETag: etag });
         }
 
         case 'PUT /notes/{noteId}': {
-          const id = sanitizeNoteId(event.pathParameters?.noteId);
+          const id = validateNoteId(event.pathParameters?.noteId);
           const input = parseNoteInput(parseJsonBody(event.body));
           // If-Match がなければ従来どおり上書きする(フロントエンドとの後方互換)
           const { note, etag } = await notes.updateNote(id, input, actor, headerValue(event.headers, 'If-Match'));
@@ -273,14 +293,14 @@ export function createHandler(storage: ObjectStorage, options: HandlerOptions) {
         }
 
         case 'POST /notes/{noteId}/append': {
-          const id = sanitizeNoteId(event.pathParameters?.noteId);
+          const id = validateNoteId(event.pathParameters?.noteId);
           const body = parseJsonBody(event.body) as { text?: unknown; separator?: unknown } | null;
           const { note, etag } = await notes.appendToNote(id, body?.text, body?.separator, actor);
           return json(200, { note }, { ETag: etag });
         }
 
         case 'DELETE /notes/{noteId}':
-          await notes.deleteNote(sanitizeNoteId(event.pathParameters?.noteId));
+          await notes.deleteNote(validateNoteId(event.pathParameters?.noteId));
           return json(204, undefined);
 
         case 'GET /users/me/settings':
@@ -299,7 +319,7 @@ export function createHandler(storage: ObjectStorage, options: HandlerOptions) {
       console.error('Error:', error);
       return errorResponse(500, 'INTERNAL_ERROR', 'Internal server error');
     }
-  };
+  }
 }
 
 export const handler = createHandler(

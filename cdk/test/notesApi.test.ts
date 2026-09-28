@@ -94,7 +94,11 @@ describe('GET / PUT /notes/{noteId}', () => {
     const { handler } = setup({ [`${PREFIX}note-1.json`]: NOTE });
     const result = await handler(event('GET /notes/{noteId}', { noteId: 'note-1' }));
     expect(result.statusCode).toBe(200);
-    expect(result.headers).toMatchObject({ ETag: '"v1"', 'Access-Control-Expose-Headers': 'ETag' });
+    expect(result.headers).toMatchObject({
+      ETag: '"v1"',
+      'Access-Control-Expose-Headers': 'ETag',
+      'Access-Control-Allow-Headers': 'Authorization,Content-Type,X-Requested-With,If-Match',
+    });
     expect(body(result).note).toMatchObject({ id: 'note-1', content: '本文' });
   });
 
@@ -133,6 +137,16 @@ describe('GET / PUT /notes/{noteId}', () => {
     const result = await handler(event('GET /notes/{noteId}', { noteId: 'note-x' }));
     expect(result.statusCode).toBe(404);
     expect(body(result)).toEqual({ error: 'Note not found', code: 'NOTE_NOT_FOUND' });
+  });
+
+  it('形式の違う noteId は、文字を取り除いて別のノートとして扱わずに 400', async () => {
+    const { handler, read } = setup({ [`${PREFIX}note-1.json`]: NOTE });
+    for (const noteId of ['note-1!', '../note-1', 'note_1', 'note-1.json']) {
+      const result = await handler(event('PUT /notes/{noteId}', { noteId, body: { content: 'hijacked' } }));
+      expect(result.statusCode).toBe(400);
+      expect(body(result).code).toBe('VALIDATION_FAILED');
+    }
+    expect(read(`${PREFIX}note-1.json`).content).toBe('本文');
   });
 
   it('上限を超える入力は 413、壊れた JSON は 400', async () => {
@@ -190,6 +204,19 @@ describe('設定 API(従来の挙動)', () => {
   it('PAT では設定を扱えない', async () => {
     const { handler } = setup();
     expect((await handler(event('GET /users/me/settings', { auth: PAT }))).statusCode).toBe(403);
+  });
+});
+
+describe('CORS', () => {
+  it.each([
+    ['GitHub Pages', 'https://ougotti.github.io', 'https://ougotti.github.io'],
+    ['localhost(API Gateway の設定と同じく許可)', 'http://localhost:3000', 'http://localhost:3000'],
+    ['許可していないオリジン', 'https://evil.example.com', 'https://ougotti.github.io'],
+  ])('%s', async (_label, origin, expected) => {
+    const { handler } = setup();
+    // エラー応答にも付く
+    const result = await handler(event('GET /notes/{noteId}', { noteId: 'note-x', headers: { origin } }));
+    expect(result.headers).toMatchObject({ 'Access-Control-Allow-Origin': expected, Vary: 'Origin' });
   });
 });
 

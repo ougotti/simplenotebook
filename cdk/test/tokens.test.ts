@@ -107,7 +107,7 @@ describe('encodeTokenId', () => {
 
 describe('validateCreateInput', () => {
   it('正しい入力を正規化する(scopes の重複除去・名前の trim・期限の既定値 30 日)', () => {
-    expect(validateCreateInput({ name: '  Claude Code​ ', scopes: ['notes:read', 'notes:read', 'notes:write'] })).toEqual({
+    expect(validateCreateInput({ name: '  Claude Code\u200B ', scopes: ['notes:read', 'notes:read', 'notes:write'] })).toEqual({
       ok: true,
       value: { name: 'Claude Code', scopes: ['notes:read', 'notes:write'], expiresInDays: 30 },
     });

@@ -120,7 +120,7 @@ export function validateCreateInput(body: unknown): { ok: true; value: CreateInp
   // 制御文字・ゼロ幅文字を除き、表示名と同じ基準で正規化する
   const name = input.name
     .normalize('NFC')
-    .replace(/[\u0000-\u001F\u007F-\u009F­؜᠎​-‏‪-‮⁠-⁯﻿￹-￻]/g, '')
+    .replace(/[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\uFFF9-\uFFFB]/g, '')
     .trim();
   if (name.length === 0 || name.length > MAX_NAME_LENGTH) {
     return { ok: false, message: `name は 1〜${MAX_NAME_LENGTH} 文字で指定してください` };

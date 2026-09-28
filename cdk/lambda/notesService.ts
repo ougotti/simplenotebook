@@ -110,11 +110,17 @@ export function parseNoteInput(body: unknown): NoteInput {
     input.content = raw.content;
   }
   if (raw.tags !== undefined) {
+    if (!Array.isArray(raw.tags) || !raw.tags.every(tag => typeof tag === 'string')) {
+      throw new ServiceError(400, 'VALIDATION_FAILED', 'tags must be an array of strings');
+    }
+    // 前後の空白・空要素・重複の除去と件数/長さの制限は従来どおり正規化で行う
     input.tags = sanitizeTags(raw.tags);
   }
   if (raw.pinned !== undefined) {
-    // boolean 以外が送られても true/false に正規化する(従来の挙動を維持)
-    input.pinned = raw.pinned === true;
+    if (typeof raw.pinned !== 'boolean') {
+      throw new ServiceError(400, 'VALIDATION_FAILED', 'pinned must be a boolean');
+    }
+    input.pinned = raw.pinned;
   }
   return input;
 }
@@ -178,12 +184,20 @@ function sameEtag(a: string, b: string): boolean {
   return normalize(a) === normalize(b);
 }
 
-export function sanitizeNoteId(noteId: string | undefined): string {
-  const sanitized = (noteId ?? '').replace(/[^a-zA-Z0-9-]/g, '');
-  if (!sanitized) {
+const NOTE_ID_PATTERN = /^[a-zA-Z0-9-]{1,100}$/;
+
+/**
+ * ノート ID を検証する。使えない文字を取り除いて別の ID として扱うと、
+ * 誤った(あるいは悪意のある)入力が別のノートを指してしまうため、形式が違えば 400 で拒否する。
+ */
+export function validateNoteId(noteId: string | undefined): string {
+  if (!noteId) {
     throw new ServiceError(400, 'VALIDATION_FAILED', 'Note ID is required');
   }
-  return sanitized;
+  if (!NOTE_ID_PATTERN.test(noteId)) {
+    throw new ServiceError(400, 'VALIDATION_FAILED', 'Note ID may contain only letters, digits and hyphens');
+  }
+  return noteId;
 }
 
 export interface SearchOptions {

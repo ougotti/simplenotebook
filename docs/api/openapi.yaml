@@ -304,7 +304,8 @@ components:
       name: noteId
       in: path
       required: true
-      schema: { type: string, pattern: '^[a-zA-Z0-9-]+$' }
+      description: 英数字とハイフンのみ。形式が違えば 400(使えない文字を取り除いて別のノートとして扱うことはしない)
+      schema: { type: string, pattern: '^[a-zA-Z0-9-]{1,100}$' }
 
   headers:
     ETag:
@@ -407,12 +408,22 @@ components:
             - METHOD_NOT_ALLOWED
             - INTERNAL_ERROR
 
+    UnauthorizedError:
+      type: object
+      description: API Gateway が返す形({ message })と、Lambda が返す形({ error, code })のどちらもあり得る
+      properties:
+        message: { type: string, example: Unauthorized }
+        error: { type: string }
+        code: { type: string, enum: [UNAUTHORIZED] }
+
   responses:
     Unauthorized:
-      description: トークンがない・無効・期限切れ・失効済み(API Gateway が返すため code は付かない場合がある)
+      description: |
+        トークンがない・無効・期限切れ・失効済み。
+        ほとんどの場合はオーソライザーの段階で API Gateway が `{ "message": "Unauthorized" }` を返し、code は付かない
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+          schema: { $ref: '#/components/schemas/UnauthorizedError' }
     InsufficientScope:
       description: トークンにこの操作の権限がない(code = INSUFFICIENT_SCOPE)
       content:
