@@ -204,6 +204,12 @@ export class SimplenotebookStack extends cdk.Stack {
       partitionKey: { name: 'GSI1PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'GSI1SK', type: dynamodb.AttributeType.STRING },
     });
+    // OAuth のトークン系列(GSI2PK = FAMILY#<familyId>)。失効やリフレッシュトークンの再利用検知で系列ごとまとめて引く
+    authTable.addGlobalSecondaryIndex({
+      indexName: 'GSI2',
+      partitionKey: { name: 'GSI2PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'GSI2SK', type: dynamodb.AttributeType.STRING },
+    });
 
     // Lambda オーソライザー(Cognito ID トークンと PAT を検証する)
     const authorizerFunction = new lambda.Function(this, 'AuthorizerFunction', {
@@ -248,7 +254,8 @@ export class SimplenotebookStack extends cdk.Stack {
     }));
     tokensFunction.addToRolePolicy(new iam.PolicyStatement({
       actions: ['dynamodb:Query'],
-      resources: [`${authTable.tableArn}/index/GSI1`],
+      // GSI1: 自分のトークン一覧 / GSI2: OAuth の接続を失効させるときに系列のトークンを引く
+      resources: [`${authTable.tableArn}/index/GSI1`, `${authTable.tableArn}/index/GSI2`],
     }));
 
     const authorizer = new apigateway.RequestAuthorizer(this, 'RequestAuthorizer', {
@@ -348,12 +355,16 @@ export class SimplenotebookStack extends cdk.Stack {
       createDefaultStage: false,
       // /mcp はブラウザからのアクセスを想定しないため CORS は付けない
     });
-    new apigwv2.HttpStage(this, 'McpDefaultStage', {
+    const mcpStage = new apigwv2.HttpStage(this, 'McpDefaultStage', {
       httpApi: mcpApi,
       stageName: '$default',
       autoDeploy: true,
       throttle: { rateLimit: 10, burstLimit: 20 },
       domainMapping: mcpDomain ? { domainName: mcpDomain } : undefined,
+    });
+    // 認証なしで呼べる DCR は、登録を大量に作られないよう個別にさらに絞る
+    (mcpStage.node.defaultChild as apigwv2.CfnStage).addPropertyOverride('RouteSettings', {
+      'POST /oauth/register': { ThrottlingRateLimit: 1, ThrottlingBurstLimit: 5 },
     });
 
     // REST API と同じ REQUEST 型(ペイロード 1.0・IAM ポリシー応答)で、同じオーソライザー関数を使う
@@ -370,7 +381,65 @@ export class SimplenotebookStack extends cdk.Stack {
       authorizer: mcpAuthorizer,
     });
 
-    const mcpUrl = mcpDomain ? `https://${mcpDomainName}/mcp` : `${mcpApi.apiEndpoint}/mcp`;
+    // issuer(認可サーバー)は MCP と同じホスト。OAuth のディスカバリーがホスト直下の /.well-known を探すため
+    const mcpOrigin = mcpDomain ? `https://${mcpDomainName}` : mcpApi.apiEndpoint;
+    const mcpUrl = `${mcpOrigin}/mcp`;
+
+    // ---- OAuth ファサード(B-20): Claude.ai / Desktop のコネクタ向け ----
+    // ユーザー認証は既存の Google + Cognito に任せ、同意を得て snb_ トークンを発行する
+    const oauthFunction = new lambda.Function(this, 'OAuthFunction', {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('oauth'),
+      environment: {
+        AUTH_TABLE_NAME: authTable.tableName,
+        ENVIRONMENT: environment,
+        ISSUER: mcpOrigin,
+        MCP_URL: mcpUrl,
+        // 同意画面は GitHub Pages の静的ページ(Cognito のコールバック URL と同じサイト)
+        CONSENT_URL: 'https://ougotti.github.io/simplenotebook/oauth/consent',
+        ALLOWED_ORIGINS: 'https://ougotti.github.io,http://localhost:3000',
+      },
+    });
+    // 設計書 3.7 節の最小権限: Get/Put/Update/Delete と GSI2 の Query(S3 には権限なし)
+    oauthFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem', 'dynamodb:DeleteItem'],
+      resources: [authTable.tableArn],
+    }));
+    oauthFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:Query'],
+      resources: [`${authTable.tableArn}/index/GSI2`],
+    }));
+
+    const oauthIntegration = new HttpLambdaIntegration('OAuthIntegration', oauthFunction);
+    // メタデータ・DCR・authorize・token は認証なし(OAuth の仕様上、トークンを持たない状態で呼ばれる)
+    for (const [method, path] of [
+      [apigwv2.HttpMethod.GET, '/.well-known/oauth-protected-resource'],
+      // RFC 9728 のパス付きの場所(リソースが /mcp のため)
+      [apigwv2.HttpMethod.GET, '/.well-known/oauth-protected-resource/mcp'],
+      [apigwv2.HttpMethod.GET, '/.well-known/oauth-authorization-server'],
+      [apigwv2.HttpMethod.POST, '/oauth/register'],
+      [apigwv2.HttpMethod.GET, '/oauth/authorize'],
+      [apigwv2.HttpMethod.POST, '/oauth/token'],
+      // 同意画面(ブラウザ)から呼ぶ 2 つのエンドポイントのプリフライト
+      [apigwv2.HttpMethod.OPTIONS, '/oauth/approve'],
+      [apigwv2.HttpMethod.OPTIONS, '/oauth/requests/{requestId}'],
+    ] as const) {
+      mcpApi.addRoutes({ path, methods: [method], integration: oauthIntegration });
+    }
+    // 同意画面からの呼び出しはログイン済みのユーザー(Cognito の ID トークン)に限る。判定は OAuth Lambda で行う
+    mcpApi.addRoutes({
+      path: '/oauth/approve',
+      methods: [apigwv2.HttpMethod.POST],
+      integration: oauthIntegration,
+      authorizer: mcpAuthorizer,
+    });
+    mcpApi.addRoutes({
+      path: '/oauth/requests/{requestId}',
+      methods: [apigwv2.HttpMethod.GET],
+      integration: oauthIntegration,
+      authorizer: mcpAuthorizer,
+    });
 
     // IAM Role for GitHub Actions OIDC
     const githubOidcRole = new iam.Role(this, 'GitHubActionsCdkDeployRole', {

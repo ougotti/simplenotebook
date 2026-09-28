@@ -306,7 +306,7 @@ export function buildMcpServer(notes: NotesService, scopes: string[], actor: Act
 type AuthorizerContext = { userId?: string; authType?: string; scopes?: string; tokenId?: string; tokenName?: string };
 
 function actorOf(auth: AuthorizerContext): Actor {
-  if (auth.authType === 'pat') {
+  if (auth.authType === 'pat' || auth.authType === 'oauth') {
     const actor: Actor = { type: 'agent' };
     if (auth.tokenId) actor.tokenId = auth.tokenId;
     if (auth.tokenName) actor.tokenName = auth.tokenName;

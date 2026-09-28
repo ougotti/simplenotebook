@@ -15,6 +15,7 @@
 /cdk/lambda/node_modules
 /cdk/authorizer/node_modules
 /cdk/tokens/node_modules
+/cdk/oauth/node_modules
 /cdk/cdk-outputs.json
 
 # misc

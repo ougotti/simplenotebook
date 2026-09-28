@@ -3,17 +3,22 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { createHash, randomBytes } from 'crypto';
 
-/** 認証テーブルに保存するアクセストークンのレコード(平文のトークンは保存しない) */
+/**
+ * 一覧に表示するレコード(平文のトークンは保存しない)。
+ * kind 'pat' は設定画面で発行した PAT、'oauth' はコネクタが OAuth で接続した「接続」(CONN#<familyId>。
+ * tokenId は系列 ID で、失効すると系列のトークンがすべて使えなくなる)
+ */
 export interface TokenRecord {
   PK: string;
   SK: 'META';
   GSI1PK: string;
   GSI1SK: string;
   tokenId: string;
-  kind: 'pat';
+  kind: 'pat' | 'oauth';
   userId: string;
   name: string;
-  secretHash: string;
+  /** PAT のみ(接続のレコードにはない) */
+  secretHash?: string;
   scopes: string[];
   createdAt: string;
   expiresAt: string;
@@ -30,6 +35,8 @@ export interface TokenStore {
   putToken(record: TokenRecord): Promise<void>;
   /** 自分のトークンなら revokedAt を設定して true。存在しない・他人のトークンなら false */
   revokeToken(userId: string, tokenId: string, now: Date): Promise<boolean>;
+  /** 自分の OAuth 接続なら、系列のトークンをすべて失効させて true。存在しない・他人のものなら false */
+  revokeConnection(userId: string, familyId: string, now: Date): Promise<boolean>;
 }
 
 export interface TokensDeps {
@@ -166,7 +173,9 @@ export function createHandler(deps: TokensDeps) {
 
     const current = now();
     const existing = await deps.store.listTokens(userId);
-    if (existing.filter((record) => statusOf(record, current) === 'active').length >= MAX_ACTIVE_TOKENS) {
+    // 上限は設定画面で発行する PAT だけに適用する(OAuth の接続は数えない)
+    const activePats = existing.filter((record) => (record.kind ?? 'pat') === 'pat' && statusOf(record, current) === 'active');
+    if (activePats.length >= MAX_ACTIVE_TOKENS) {
       return error(409, 'too_many_tokens', `有効なトークンは ${MAX_ACTIVE_TOKENS} 個までです。不要なトークンを失効してください`);
     }
 
@@ -208,7 +217,7 @@ export function createHandler(deps: TokensDeps) {
 
       // 呼び出しに使っているトークン自身の情報。MCP サーバーが自分の権限を確認するために使う
       if (route === 'GET /tokens/self') {
-        if (authorizer?.authType !== 'pat' || !authorizer?.tokenId) {
+        if ((authorizer?.authType !== 'pat' && authorizer?.authType !== 'oauth') || !authorizer?.tokenId) {
           return error(400, 'not_a_token', 'このエンドポイントはアクセストークンで呼び出してください');
         }
         const record = await deps.store.getToken(authorizer.tokenId);
@@ -238,7 +247,9 @@ export function createHandler(deps: TokensDeps) {
             return error(400, 'invalid_request', 'tokenId の形式が正しくありません');
           }
           // 他人のトークンも「見つからない」として扱い、存在を漏らさない
-          if (!(await deps.store.revokeToken(userId, tokenId, now()))) {
+          const revoked = (await deps.store.revokeToken(userId, tokenId, now())) ||
+            (await deps.store.revokeConnection(userId, tokenId, now()));
+          if (!revoked) {
             return error(404, 'not_found', 'トークンが見つかりません');
           }
           return json(204, undefined);
@@ -302,6 +313,37 @@ export function createDynamoTokenStore(tableName: string, client = DynamoDBDocum
         if ((err as Error).name === 'ConditionalCheckFailedException') return false;
         throw err;
       }
+    },
+    async revokeConnection(userId, familyId, now) {
+      // 本人の接続であることを確かめてから、系列(GSI2 = FAMILY#<familyId>)をすべて失効させる
+      const connection = await client.send(new GetCommand({
+        TableName: tableName,
+        Key: { PK: `CONN#${familyId}`, SK: 'META' },
+      }));
+      if (!connection.Item || connection.Item.userId !== userId) return false;
+
+      const keys: { PK: string; SK: string }[] = [];
+      let exclusiveStartKey: Record<string, unknown> | undefined;
+      do {
+        const result = await client.send(new QueryCommand({
+          TableName: tableName,
+          IndexName: 'GSI2',
+          KeyConditionExpression: 'GSI2PK = :pk',
+          ExpressionAttributeValues: { ':pk': `FAMILY#${familyId}` },
+          ExclusiveStartKey: exclusiveStartKey,
+        }));
+        keys.push(...(result.Items ?? []).map((item) => ({ PK: item.PK as string, SK: item.SK as string })));
+        exclusiveStartKey = result.LastEvaluatedKey;
+      } while (exclusiveStartKey);
+
+      await Promise.all(keys.map((key) => client.send(new UpdateCommand({
+        TableName: tableName,
+        Key: key,
+        UpdateExpression: 'SET revokedAt = if_not_exists(revokedAt, :now)',
+        ConditionExpression: 'userId = :me',
+        ExpressionAttributeValues: { ':now': now.toISOString(), ':me': userId },
+      }))));
+      return true;
     },
   };
 }

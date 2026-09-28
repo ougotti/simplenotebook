@@ -52,6 +52,7 @@ jobs:
             cdk/lambda/package-lock.json
             cdk/authorizer/package-lock.json
             cdk/tokens/package-lock.json
+            cdk/oauth/package-lock.json
 
       - name: Install CDK dependencies
         working-directory: cdk
@@ -75,6 +76,10 @@ jobs:
 
       - name: Install Tokens dependencies
         working-directory: cdk/tokens
+        run: npm ci --omit=dev
+
+      - name: Install OAuth dependencies
+        working-directory: cdk/oauth
         run: npm ci --omit=dev
 
       - name: Deploy CDK stack and get outputs
