@@ -283,7 +283,7 @@ POST /notes/{noteId}/append
 
 ### 4.5 入力の厳格化
 
-- PUT/POST で受け付けるフィールドを `title`・`content`・`tags` に限定する(現状の `...noteData` の展開をやめる)
+- PUT/POST で受け付けるフィールドを `title`・`content`・`tags`・`pinned`(B-05 で追加)に限定する(現状の `...noteData` の展開をやめる)
 - 上限: `title` は 200 文字、`content` は 1 MB。超えたら 413 を返す
 - 更新者を記録する: `lastModifiedBy: { type: "user" | "agent", tokenName? }`。UI で「エージェントによる編集」と分かるように表示できる
 

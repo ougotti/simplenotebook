@@ -296,6 +296,8 @@ function NewNotePageContent() {
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="ノートのタイトル"
+              // API の上限(200 文字。超えると 413)に合わせる
+              maxLength={200}
             />
             <TagInput tags={tags} onChange={setTags} disabled={isSaving} />
             <div>

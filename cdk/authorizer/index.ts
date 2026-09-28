@@ -17,6 +17,8 @@ export interface StoredToken {
   scopes: string[];
   expiresAt: string;
   revokedAt?: string | null;
+  /** 発行時に付けた名前。ノートの更新者(lastModifiedBy)の表示に使う */
+  name?: string;
 }
 
 /** 認証テーブルへのアクセス(テストで差し替えられるようにする) */
@@ -88,7 +90,7 @@ export function apiWildcardArn(methodArn: string): string {
   return `${apiArn}/${stage}/*`;
 }
 
-type AuthContext = { userId: string; authType: 'cognito' | 'pat'; scopes: string; tokenId?: string };
+type AuthContext = { userId: string; authType: 'cognito' | 'pat'; scopes: string; tokenId?: string; tokenName?: string };
 
 function allow(methodArn: string, context: AuthContext): APIGatewayAuthorizerResult {
   return {
@@ -135,6 +137,7 @@ async function verifyPat(token: string, deps: AuthorizerDeps, now: Date): Promis
     userId: stored.userId,
     authType: 'pat',
     tokenId: stored.tokenId,
+    tokenName: typeof stored.name === 'string' ? stored.name : '',
     scopes: (Array.isArray(stored.scopes) ? stored.scopes : []).filter((scope) => PAT_ALLOWED_SCOPES.has(scope)).join(' '),
   };
 }

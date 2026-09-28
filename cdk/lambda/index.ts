@@ -1,49 +1,20 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, _Object } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { S3Client } from '@aws-sdk/client-s3';
+import { createS3Storage, ObjectStorage } from './storage';
+import {
+  Actor,
+  createNotesService,
+  NotesServiceOptions,
+  parseNoteInput,
+  sanitizeNoteId,
+  SearchOptions,
+  ServiceError,
+} from './notesService';
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION });
-const NOTES_BUCKET = process.env.NOTES_BUCKET!;
-const NOTES_PREFIX = process.env.NOTES_PREFIX || '';
-
-interface Note {
-  id: string;
-  title: string;
-  content: string;
-  tags?: string[];
-  pinned?: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// ピン留めの切り替えだけのリクエストか(内容が変わらないので updatedAt を動かさない)
-function isPinOnlyUpdate(noteData: Partial<Note> | undefined): boolean {
-  const keys = Object.keys(noteData ?? {});
-  return keys.length > 0 && keys.every(key => key === 'pinned');
-}
-
-const MAX_TAGS = 20;
-const MAX_TAG_LENGTH = 50;
-// 無効要素だけの巨大配列で全件走査させられないよう、走査自体にも上限を設ける
-const MAX_TAG_SCAN = 100;
-
-// タグの入力サニタイゼーション: 文字列配列以外は空に、trim・空要素除去・重複排除・件数/長さ制限
-function sanitizeTags(input: unknown): string[] {
-  if (!Array.isArray(input)) {
-    return [];
-  }
-  const seen = new Set<string>();
-  const tags: string[] = [];
-  for (const raw of input.slice(0, MAX_TAG_SCAN)) {
-    if (typeof raw !== 'string') continue;
-    const tag = raw.trim().slice(0, MAX_TAG_LENGTH);
-    if (!tag || seen.has(tag)) continue;
-    seen.add(tag);
-    tags.push(tag);
-    if (tags.length >= MAX_TAGS) break;
-  }
-  return tags;
-}
+/**
+ * REST API の HTTP 層。ルーティング・権限判定・リクエストの解釈・エラー形式だけを扱い、
+ * ノート操作そのものは notesService に任せる。
+ */
 
 interface UserSettings {
   displayName: string;
@@ -51,12 +22,45 @@ interface UserSettings {
   updatedAt: string;
 }
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': 'https://ougotti.github.io',
+  'Access-Control-Allow-Headers': 'Authorization,Content-Type,If-Match',
+  // ブラウザから ETag を読めるようにする
+  'Access-Control-Expose-Headers': 'ETag',
+};
+
+type ErrorCode =
+  | 'UNAUTHORIZED'
+  | 'INSUFFICIENT_SCOPE'
+  | 'NOTE_NOT_FOUND'
+  | 'SETTINGS_NOT_FOUND'
+  | 'CONFLICT'
+  | 'VALIDATION_FAILED'
+  | 'PAYLOAD_TOO_LARGE'
+  | 'METHOD_NOT_ALLOWED'
+  | 'INTERNAL_ERROR';
+
+function json(statusCode: number, body: unknown, headers: Record<string, string> = {}): APIGatewayProxyResult {
+  return {
+    statusCode,
+    headers: { ...CORS_HEADERS, ...headers },
+    body: body === undefined ? '' : JSON.stringify(body),
+  };
+}
+
+/** エラー形式: 従来の error(説明)に機械判読用の code を足す */
+function errorResponse(statusCode: number, code: ErrorCode, error: string): APIGatewayProxyResult {
+  return json(statusCode, { error, code });
+}
+
 // ルートごとに必要な権限。'cognito' はブラウザのログインでのみ許可する(PAT では不可)
 const ROUTE_PERMISSIONS: Record<string, string> = {
   'GET /notes': 'notes:read',
   'GET /notes/{noteId}': 'notes:read',
+  'GET /tags': 'notes:read',
   'POST /notes': 'notes:write',
   'PUT /notes/{noteId}': 'notes:write',
+  'POST /notes/{noteId}/append': 'notes:write',
   'DELETE /notes/{noteId}': 'notes:delete',
   'GET /users/me/settings': 'cognito',
   'PUT /users/me/settings': 'cognito',
@@ -75,337 +79,58 @@ export function isRouteAllowed(route: string, authorizer: { authType?: unknown; 
   return scopes.includes(required);
 }
 
-export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+function actorOf(authorizer: Record<string, unknown> | null | undefined): Actor {
+  if (authorizer?.authType === 'pat') {
+    const actor: Actor = { type: 'agent' };
+    if (typeof authorizer.tokenId === 'string' && authorizer.tokenId) actor.tokenId = authorizer.tokenId;
+    if (typeof authorizer.tokenName === 'string' && authorizer.tokenName) actor.tokenName = authorizer.tokenName;
+    return actor;
+  }
+  return { type: 'user' };
+}
+
+function parseJsonBody(body: string | null): unknown {
   try {
-    // Lambda オーソライザーが検証済みのユーザー ID を context で渡す
-    const userId = event.requestContext.authorizer?.userId;
-    if (!userId) {
-      return {
-        statusCode: 401,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-        },
-        body: JSON.stringify({ error: 'Unauthorized' }),
-      };
-    }
-
-    const httpMethod = event.httpMethod;
-    const resource = event.resource;
-
-    if (!isRouteAllowed(`${httpMethod} ${resource}`, event.requestContext.authorizer)) {
-      return {
-        statusCode: 403,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-        },
-        body: JSON.stringify({ error: 'Forbidden', message: 'このトークンにはこの操作の権限がありません' }),
-      };
-    }
-
-    // Sanitize user ID to prevent path traversal
-    const sanitizedUserId = userId.replace(/[^a-zA-Z0-9-]/g, '');
-    const userPrefix = `${NOTES_PREFIX}${sanitizedUserId}/`;
-
-    switch (`${httpMethod} ${resource}`) {
-      case 'OPTIONS /notes':
-      case 'OPTIONS /notes/{noteId}':
-      case 'OPTIONS /users/me/settings':
-        return {
-          statusCode: 204,
-          headers: {
-            'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-            'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-          },
-          body: '',
-        };
-      
-      case 'GET /notes':
-        return await listNotes(userPrefix);
-      
-      case 'POST /notes':
-        return await createNote(userPrefix, JSON.parse(event.body || '{}'));
-      
-      case 'GET /notes/{noteId}':
-        return await getNote(userPrefix, event.pathParameters?.noteId);
-      
-      case 'PUT /notes/{noteId}':
-        return await updateNote(userPrefix, event.pathParameters?.noteId, JSON.parse(event.body || '{}'));
-      
-      case 'DELETE /notes/{noteId}':
-        return await deleteNote(userPrefix, event.pathParameters?.noteId);
-      
-      case 'GET /users/me/settings':
-        return await getUserSettings(sanitizedUserId);
-      
-      case 'PUT /users/me/settings':
-        return await updateUserSettings(sanitizedUserId, JSON.parse(event.body || '{}'));
-      
-      
-      default:
-        return {
-          statusCode: 405,
-          headers: {
-            'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-            'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-          },
-          body: JSON.stringify({ error: 'Method not allowed' }),
-        };
-    }
-  } catch (error) {
-    console.error('Error:', error);
-    return {
-      statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify({ error: 'Internal server error' }),
-    };
-  }
-};
-
-async function listNotes(userPrefix: string): Promise<APIGatewayProxyResult> {
-  const command = new ListObjectsV2Command({
-    Bucket: NOTES_BUCKET,
-    Prefix: userPrefix,
-  });
-
-  const response = await s3Client.send(command);
-  const notes = await Promise.all(
-    (response.Contents || []).map(async (object: _Object) => {
-      const noteId = object.Key!.replace(userPrefix, '').replace('.json', '');
-      const getCommand = new GetObjectCommand({
-        Bucket: NOTES_BUCKET,
-        Key: object.Key!,
-      });
-      
-      const noteResponse = await s3Client.send(getCommand);
-      const noteContent = await noteResponse.Body!.transformToString();
-      const note = JSON.parse(noteContent);
-      
-      return {
-        id: noteId,
-        title: note.title,
-        // S3 上のデータが壊れていても型不整合を返さないよう読み出し側でも正規化する
-        tags: sanitizeTags(note.tags),
-        pinned: note.pinned === true,
-        createdAt: note.createdAt,
-        updatedAt: note.updatedAt,
-      };
-    })
-  );
-
-  return {
-    statusCode: 200,
-    headers: {
-      'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-      'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-    },
-    body: JSON.stringify({ notes }),
-  };
-}
-
-async function createNote(userPrefix: string, noteData: Partial<Note>): Promise<APIGatewayProxyResult> {
-  const noteId = generateNoteId();
-  const now = new Date().toISOString();
-  
-  const note: Note = {
-    id: noteId,
-    title: noteData.title || 'Untitled',
-    content: noteData.content || '',
-    tags: sanitizeTags(noteData.tags),
-    pinned: noteData.pinned === true,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  const command = new PutObjectCommand({
-    Bucket: NOTES_BUCKET,
-    Key: `${userPrefix}${noteId}.json`,
-    Body: JSON.stringify(note),
-    ContentType: 'application/json',
-  });
-
-  await s3Client.send(command);
-
-  return {
-    statusCode: 201,
-    headers: {
-      'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-      'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-    },
-    body: JSON.stringify({ note }),
-  };
-}
-
-async function getNote(userPrefix: string, noteId?: string): Promise<APIGatewayProxyResult> {
-  if (!noteId) {
-    return {
-      statusCode: 400,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify({ error: 'Note ID is required' }),
-    };
-  }
-
-  // Sanitize note ID
-  const sanitizedNoteId = noteId.replace(/[^a-zA-Z0-9-]/g, '');
-
-  try {
-    const command = new GetObjectCommand({
-      Bucket: NOTES_BUCKET,
-      Key: `${userPrefix}${sanitizedNoteId}.json`,
-    });
-
-    const response = await s3Client.send(command);
-    const noteContent = await response.Body!.transformToString();
-    const note = JSON.parse(noteContent);
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify({ note }),
-    };
-  } catch (error: any) {
-    if (error.name === 'NoSuchKey') {
-      return {
-        statusCode: 404,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-        },
-        body: JSON.stringify({ error: 'Note not found' }),
-      };
-    }
-    throw error;
+    return JSON.parse(body || '{}');
+  } catch {
+    throw new ServiceError(400, 'VALIDATION_FAILED', 'Request body is not valid JSON');
   }
 }
 
-async function updateNote(userPrefix: string, noteId?: string, noteData?: Partial<Note>): Promise<APIGatewayProxyResult> {
-  if (!noteId) {
-    return {
-      statusCode: 400,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify({ error: 'Note ID is required' }),
-    };
+function headerValue(headers: APIGatewayProxyEvent['headers'], name: string): string | undefined {
+  const key = Object.keys(headers ?? {}).find(header => header.toLowerCase() === name.toLowerCase());
+  const value = key ? headers[key] : undefined;
+  return value ?? undefined;
+}
+
+const SEARCH_PARAMS = ['q', 'tag', 'limit', 'cursor', 'include'];
+
+/** GET /notes のクエリを解釈する。検索用のパラメータが 1 つもなければ null(現行の一覧を返す) */
+export function parseSearchOptions(event: Pick<APIGatewayProxyEvent, 'queryStringParameters' | 'multiValueQueryStringParameters'>): SearchOptions | null {
+  const single = event.queryStringParameters ?? {};
+  const multi = event.multiValueQueryStringParameters ?? {};
+  if (!SEARCH_PARAMS.some(param => single[param] !== undefined || multi[param] !== undefined)) {
+    return null;
   }
 
-  // Sanitize note ID
-  const sanitizedNoteId = noteId.replace(/[^a-zA-Z0-9-]/g, '');
-
-  try {
-    // Get existing note
-    const getCommand = new GetObjectCommand({
-      Bucket: NOTES_BUCKET,
-      Key: `${userPrefix}${sanitizedNoteId}.json`,
-    });
-
-    const response = await s3Client.send(getCommand);
-    const noteContent = await response.Body!.transformToString();
-    const existingNote = JSON.parse(noteContent);
-
-    // Update note
-    const updatedNote: Note = {
-      ...existingNote,
-      ...noteData,
-      id: existingNote.id, // Prevent ID change
-      // 既存データ側が壊れている場合も含めて、保存前に必ず正規化する
-      tags: sanitizeTags(noteData?.tags !== undefined ? noteData.tags : existingNote.tags),
-      // boolean 以外が送られても true/false に正規化して保存する
-      pinned: noteData?.pinned !== undefined ? noteData.pinned === true : existingNote.pinned === true,
-      createdAt: existingNote.createdAt, // Prevent creation date change
-      updatedAt: isPinOnlyUpdate(noteData) ? existingNote.updatedAt : new Date().toISOString(),
-    };
-
-    const putCommand = new PutObjectCommand({
-      Bucket: NOTES_BUCKET,
-      Key: `${userPrefix}${sanitizedNoteId}.json`,
-      Body: JSON.stringify(updatedNote),
-      ContentType: 'application/json',
-    });
-
-    await s3Client.send(putCommand);
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify({ note: updatedNote }),
-    };
-  } catch (error: any) {
-    if (error.name === 'NoSuchKey') {
-      return {
-        statusCode: 404,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-        },
-        body: JSON.stringify({ error: 'Note not found' }),
-      };
+  const options: SearchOptions = {};
+  if (single.q !== undefined) options.q = single.q;
+  const tags = multi.tag ?? (single.tag !== undefined ? [single.tag] : []);
+  if (tags.length > 0) options.tags = tags;
+  if (single.limit !== undefined) {
+    if (!/^\d+$/.test(single.limit)) {
+      throw new ServiceError(400, 'VALIDATION_FAILED', 'limit must be an integer');
     }
-    throw error;
+    options.limit = Number(single.limit);
   }
-}
-
-async function deleteNote(userPrefix: string, noteId?: string): Promise<APIGatewayProxyResult> {
-  if (!noteId) {
-    return {
-      statusCode: 400,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify({ error: 'Note ID is required' }),
-    };
+  if (single.cursor !== undefined) options.cursor = single.cursor;
+  if (single.include !== undefined) {
+    if (single.include !== 'snippet' && single.include !== 'content') {
+      throw new ServiceError(400, 'VALIDATION_FAILED', 'include must be "snippet" or "content"');
+    }
+    options.include = single.include;
   }
-
-  // Sanitize note ID
-  const sanitizedNoteId = noteId.replace(/[^a-zA-Z0-9-]/g, '');
-
-  try {
-    const command = new DeleteObjectCommand({
-      Bucket: NOTES_BUCKET,
-      Key: `${userPrefix}${sanitizedNoteId}.json`,
-    });
-
-    await s3Client.send(command);
-
-    return {
-      statusCode: 204,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: '',
-    };
-  } catch (error) {
-    console.error('Error deleting note:', error);
-    return {
-      statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify({ error: 'Failed to delete note' }),
-    };
-  }
-}
-
-function generateNoteId(): string {
-  return `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return options;
 }
 
 /**
@@ -428,7 +153,7 @@ function validateDisplayName(input: string): { isValid: boolean; displayName?: s
   }
 
   // 制御文字とゼロ幅文字を除外
-  const controlCharRegex = /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\uFFF9-\uFFFB]/g;
+  const controlCharRegex = /[\u0000-\u001F\u007F-\u009F­؜᠎​-‏‪-‮⁠-⁯﻿￹-￻]/g;
   displayName = displayName.replace(controlCharRegex, '');
 
   // 再度空文字チェック（制御文字除去後）
@@ -444,135 +169,140 @@ function validateDisplayName(input: string): { isValid: boolean; displayName?: s
   return { isValid: true, displayName };
 }
 
-/**
- * ユーザー設定を取得
- */
-async function getUserSettings(userId: string): Promise<APIGatewayProxyResult> {
-  try {
-    const command = new GetObjectCommand({
-      Bucket: NOTES_BUCKET,
-      Key: `${NOTES_PREFIX}users/${userId}/settings.json`,
-    });
-
-    const response = await s3Client.send(command);
-    const settingsContent = await response.Body!.transformToString();
-    const settings = JSON.parse(settingsContent);
-
-    console.log(`Settings retrieved successfully for user: ${userId}`);
-    
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify(settings),
-    };
-  } catch (error: any) {
-    if (error.name === 'NoSuchKey') {
-      console.log(`Settings not found for user: ${userId}`);
-      return {
-        statusCode: 404,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-        },
-        body: JSON.stringify({ error: 'Settings not found' }),
-      };
-    }
-
-    console.error('Error getting settings:', error);
-    return {
-      statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify({ error: 'Failed to get settings' }),
-    };
-  }
+export interface HandlerOptions extends NotesServiceOptions {
+  notesPrefix: string;
 }
 
-/**
- * ユーザー設定を更新
- */
-async function updateUserSettings(userId: string, settingsData: Partial<UserSettings>): Promise<APIGatewayProxyResult> {
-  try {
+export function createHandler(storage: ObjectStorage, options: HandlerOptions) {
+  const now = options.now ?? (() => new Date());
+  const settingsKey = (userId: string) => `${options.notesPrefix}users/${userId}/settings.json`;
+
+  async function getUserSettings(userId: string): Promise<APIGatewayProxyResult> {
+    const object = await storage.get(settingsKey(userId));
+    if (!object) {
+      console.log(`Settings not found for user: ${userId}`);
+      return errorResponse(404, 'SETTINGS_NOT_FOUND', 'Settings not found');
+    }
+    console.log(`Settings retrieved successfully for user: ${userId}`);
+    return json(200, JSON.parse(object.body));
+  }
+
+  async function updateUserSettings(userId: string, body: unknown): Promise<APIGatewayProxyResult> {
+    const settingsData = (typeof body === 'object' && body !== null ? body : {}) as Partial<UserSettings>;
     if (!settingsData.displayName) {
-      return {
-        statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-        },
-        body: JSON.stringify({ error: '表示名は必須です' }),
-      };
+      return errorResponse(400, 'VALIDATION_FAILED', '表示名は必須です');
     }
 
     const validation = validateDisplayName(settingsData.displayName);
     if (!validation.isValid) {
-      return {
-        statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-          'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-        },
-        body: JSON.stringify({ error: validation.error }),
-      };
+      return errorResponse(400, 'VALIDATION_FAILED', validation.error!);
     }
 
     // 既存の設定を取得（createdAtを保持するため）
     let existingSettings: UserSettings | null = null;
     try {
-      const getCommand = new GetObjectCommand({
-        Bucket: NOTES_BUCKET,
-        Key: `${NOTES_PREFIX}users/${userId}/settings.json`,
-      });
-      const response = await s3Client.send(getCommand);
-      const content = await response.Body!.transformToString();
-      existingSettings = JSON.parse(content);
-    } catch (error: any) {
-      if (error.name !== 'NoSuchKey') {
-        console.error('Error getting existing settings:', error);
-      }
+      const object = await storage.get(settingsKey(userId));
+      existingSettings = object ? JSON.parse(object.body) : null;
+    } catch (error) {
+      console.error('Error getting existing settings:', error);
     }
 
-    const now = new Date().toISOString();
+    const timestamp = now().toISOString();
     const settings: UserSettings = {
       displayName: validation.displayName!,
-      createdAt: existingSettings?.createdAt || now,
-      updatedAt: now,
+      createdAt: existingSettings?.createdAt || timestamp,
+      updatedAt: timestamp,
     };
-
-    const command = new PutObjectCommand({
-      Bucket: NOTES_BUCKET,
-      Key: `${NOTES_PREFIX}users/${userId}/settings.json`,
-      Body: JSON.stringify(settings),
-      ContentType: 'application/json',
-      ServerSideEncryption: 'AES256',
-    });
-
-    await s3Client.send(command);
+    await storage.put(settingsKey(userId), JSON.stringify(settings));
 
     console.log(`Settings updated successfully for user: ${userId}`);
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify(settings),
-    };
-  } catch (error) {
-    console.error('Error updating settings:', error);
-    return {
-      statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ougotti.github.io',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-      },
-      body: JSON.stringify({ error: 'Failed to update settings' }),
-    };
+    return json(200, settings);
   }
+
+  return async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    const route = `${event.httpMethod} ${event.resource}`;
+    try {
+      if (event.httpMethod === 'OPTIONS') {
+        return json(204, undefined, { 'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS' });
+      }
+
+      // Lambda オーソライザーが検証済みのユーザー ID を context で渡す
+      const authorizer = event.requestContext.authorizer;
+      const userId = authorizer?.userId;
+      if (!userId) {
+        return errorResponse(401, 'UNAUTHORIZED', 'Unauthorized');
+      }
+      if (!isRouteAllowed(route, authorizer)) {
+        return errorResponse(403, 'INSUFFICIENT_SCOPE', 'このトークンにはこの操作の権限がありません');
+      }
+
+      // Sanitize user ID to prevent path traversal
+      const sanitizedUserId = String(userId).replace(/[^a-zA-Z0-9-]/g, '');
+      const notes = createNotesService(storage, `${options.notesPrefix}${sanitizedUserId}/`, options);
+      const actor = actorOf(authorizer);
+
+      switch (route) {
+        case 'GET /notes': {
+          const searchOptions = parseSearchOptions(event);
+          // パラメータがなければ現行と同じレスポンス(フロントエンドとの後方互換)
+          if (!searchOptions) {
+            return json(200, { notes: await notes.listSummaries() });
+          }
+          return json(200, await notes.search(searchOptions));
+        }
+
+        case 'GET /tags':
+          return json(200, { tags: await notes.listTags() });
+
+        case 'POST /notes': {
+          const { note, etag } = await notes.createNote(parseNoteInput(parseJsonBody(event.body)), actor);
+          return json(201, { note }, { ETag: etag });
+        }
+
+        case 'GET /notes/{noteId}': {
+          const { note, etag } = await notes.getNote(sanitizeNoteId(event.pathParameters?.noteId));
+          return json(200, { note }, { ETag: etag });
+        }
+
+        case 'PUT /notes/{noteId}': {
+          const id = sanitizeNoteId(event.pathParameters?.noteId);
+          const input = parseNoteInput(parseJsonBody(event.body));
+          // If-Match がなければ従来どおり上書きする(フロントエンドとの後方互換)
+          const { note, etag } = await notes.updateNote(id, input, actor, headerValue(event.headers, 'If-Match'));
+          return json(200, { note }, { ETag: etag });
+        }
+
+        case 'POST /notes/{noteId}/append': {
+          const id = sanitizeNoteId(event.pathParameters?.noteId);
+          const body = parseJsonBody(event.body) as { text?: unknown; separator?: unknown } | null;
+          const { note, etag } = await notes.appendToNote(id, body?.text, body?.separator, actor);
+          return json(200, { note }, { ETag: etag });
+        }
+
+        case 'DELETE /notes/{noteId}':
+          await notes.deleteNote(sanitizeNoteId(event.pathParameters?.noteId));
+          return json(204, undefined);
+
+        case 'GET /users/me/settings':
+          return await getUserSettings(sanitizedUserId);
+
+        case 'PUT /users/me/settings':
+          return await updateUserSettings(sanitizedUserId, parseJsonBody(event.body));
+
+        default:
+          return errorResponse(405, 'METHOD_NOT_ALLOWED', 'Method not allowed');
+      }
+    } catch (error) {
+      if (error instanceof ServiceError) {
+        return errorResponse(error.status, error.code, error.message);
+      }
+      console.error('Error:', error);
+      return errorResponse(500, 'INTERNAL_ERROR', 'Internal server error');
+    }
+  };
 }
+
+export const handler = createHandler(
+  createS3Storage(new S3Client({ region: process.env.AWS_REGION }), process.env.NOTES_BUCKET!),
+  { notesPrefix: process.env.NOTES_PREFIX || '' }
+);

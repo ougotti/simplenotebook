@@ -177,7 +177,7 @@ export class SimplenotebookStack extends cdk.Stack {
       defaultCorsPreflightOptions: {
         allowOrigins: ['https://ougotti.github.io', 'http://localhost:3000'],
         allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowHeaders: ['Authorization', 'Content-Type', 'X-Requested-With'],
+        allowHeaders: ['Authorization', 'Content-Type', 'X-Requested-With', 'If-Match'],
         allowCredentials: true,
       },
     });
@@ -273,6 +273,8 @@ export class SimplenotebookStack extends cdk.Stack {
     noteResource.addMethod('GET', lambdaIntegration, authorizedMethodOptions);
     noteResource.addMethod('PUT', lambdaIntegration, authorizedMethodOptions);
     noteResource.addMethod('DELETE', lambdaIntegration, authorizedMethodOptions);
+    noteResource.addResource('append').addMethod('POST', lambdaIntegration, authorizedMethodOptions);
+    api.root.addResource('tags').addMethod('GET', lambdaIntegration, authorizedMethodOptions);
 
     // Settings API Methods
     settingsResource.addMethod('GET', lambdaIntegration, authorizedMethodOptions);
