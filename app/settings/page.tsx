@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { apiClient, UserSettings } from '../../lib/api';
 import SettingsModal from '../../components/SettingsModal';
 import UserDisplay from '../../components/UserDisplay';
+import AgentTokens from '../../components/AgentTokens';
 
 export default function SettingsPage() {
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
@@ -159,6 +160,8 @@ export default function SettingsPage() {
           </div>
         )
       )}
+
+      <AgentTokens />
 
       {/* Settings Modal */}
       <SettingsModal
