@@ -871,8 +871,31 @@ export function createDynamoOAuthStore(tableName: string, client = DynamoDBDocum
   };
 }
 
-/** 系列(GSI2 = FAMILY#<familyId>)のレコードをすべて失効させる。トークン管理 API からも使う */
-export async function revokeFamilyInTable(client: DynamoDBDocumentClient, tableName: string, familyId: string, now: Date): Promise<void> {
+// 系列の失効で同時に発行する UpdateItem の上限(ソケット枯渇・スロットリングを避ける)
+export const REVOKE_CONCURRENCY = 10;
+
+/** items を最大 limit 件ずつ並行して処理する */
+export async function forEachWithConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<unknown>): Promise<void> {
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const item = items[next++];
+      await fn(item);
+    }
+  });
+  await Promise.all(workers);
+}
+
+/**
+ * 失効が必要な系列のレコードのキー。すでに使えないもの(失効済み・期限切れ・使用済みのリフレッシュトークン)は除く。
+ * リフレッシュのたびにレコードが増えても、失効させる対象は数件に収まる。
+ * 途中で失敗してもリフレッシュできないよう、接続(CONN)を先頭にする
+ */
+export function orderForRevocation(keys: { PK: string; SK: string }[]): { PK: string; SK: string }[] {
+  return [...keys].sort((a, b) => Number(!a.PK.startsWith('CONN#')) - Number(!b.PK.startsWith('CONN#')));
+}
+
+async function queryRevocableKeys(client: DynamoDBDocumentClient, tableName: string, familyId: string, now: Date) {
   const keys: { PK: string; SK: string }[] = [];
   let exclusiveStartKey: Record<string, unknown> | undefined;
   do {
@@ -880,19 +903,26 @@ export async function revokeFamilyInTable(client: DynamoDBDocumentClient, tableN
       TableName: tableName,
       IndexName: 'GSI2',
       KeyConditionExpression: 'GSI2PK = :pk',
-      ExpressionAttributeValues: { ':pk': `FAMILY#${familyId}` },
+      FilterExpression: 'attribute_not_exists(revokedAt) AND attribute_not_exists(usedAt) AND expiresAt > :now',
+      ExpressionAttributeValues: { ':pk': `FAMILY#${familyId}`, ':now': now.toISOString() },
+      ProjectionExpression: 'PK, SK',
       ExclusiveStartKey: exclusiveStartKey,
     }));
     keys.push(...(result.Items ?? []).map(item => ({ PK: item.PK as string, SK: item.SK as string })));
     exclusiveStartKey = result.LastEvaluatedKey;
   } while (exclusiveStartKey);
+  return orderForRevocation(keys);
+}
 
-  await Promise.all(keys.map(key => client.send(new UpdateCommand({
+/** 系列(GSI2 = FAMILY#<familyId>)のうち、まだ使えるレコードを失効させる */
+export async function revokeFamilyInTable(client: DynamoDBDocumentClient, tableName: string, familyId: string, now: Date): Promise<void> {
+  const keys = await queryRevocableKeys(client, tableName, familyId, now);
+  await forEachWithConcurrency(keys, REVOKE_CONCURRENCY, key => client.send(new UpdateCommand({
     TableName: tableName,
     Key: key,
     UpdateExpression: 'SET revokedAt = if_not_exists(revokedAt, :now)',
     ExpressionAttributeValues: { ':now': now.toISOString() },
-  }))));
+  })));
 }
 
 export const handler = createHandler({

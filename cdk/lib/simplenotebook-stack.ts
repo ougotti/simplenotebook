@@ -243,6 +243,8 @@ export class SimplenotebookStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('tokens'),
+      // OAuth の接続を失効させるとき、系列のレコードを順に更新するため既定(3 秒)より余裕を持たせる
+      timeout: cdk.Duration.seconds(10),
       environment: {
         AUTH_TABLE_NAME: authTable.tableName,
         ENVIRONMENT: environment,
@@ -387,6 +389,8 @@ export class SimplenotebookStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('oauth'),
+      // リフレッシュトークンの再利用検知で系列を失効させるとき、レコードを順に更新するため既定(3 秒)より余裕を持たせる
+      timeout: cdk.Duration.seconds(10),
       environment: {
         AUTH_TABLE_NAME: authTable.tableName,
         ENVIRONMENT: environment,
