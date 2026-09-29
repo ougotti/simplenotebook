@@ -887,14 +887,18 @@ export async function forEachWithConcurrency<T>(items: T[], limit: number, fn: (
 }
 
 /**
- * 失効が必要な系列のレコードのキー。すでに使えないもの(失効済み・期限切れ・使用済みのリフレッシュトークン)は除く。
- * リフレッシュのたびにレコードが増えても、失効させる対象は数件に収まる。
+ * 失効させる順に並べ替える(絞り込みはしない)。
  * 途中で失敗してもリフレッシュできないよう、接続(CONN)を先頭にする
  */
 export function orderForRevocation(keys: { PK: string; SK: string }[]): { PK: string; SK: string }[] {
   return [...keys].sort((a, b) => Number(!a.PK.startsWith('CONN#')) - Number(!b.PK.startsWith('CONN#')));
 }
 
+/**
+ * 失効が必要な系列のレコードのキーを、失効させる順で返す。
+ * すでに使えないもの(失効済み・期限切れ・使用済みのリフレッシュトークン)は FilterExpression で除くので、
+ * リフレッシュのたびにレコードが増えても、失効させる対象は数件に収まる
+ */
 async function queryRevocableKeys(client: DynamoDBDocumentClient, tableName: string, familyId: string, now: Date) {
   const keys: { PK: string; SK: string }[] = [];
   let exclusiveStartKey: Record<string, unknown> | undefined;
