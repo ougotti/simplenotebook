@@ -180,6 +180,9 @@ export class SimplenotebookStack extends cdk.Stack {
     const api = new apigateway.RestApi(this, 'NotesApi', {
       restApiName: `simplenotebook-api-${environment}`,
       description: 'API for Simplenotebook app',
+      // API Gateway のログ用ロールはアカウントで 1 つの設定(AWS::ApiGateway::Account)なので、本番スタックだけが持つ。
+      // 開発用スタックを作って消したときに、本番の設定を上書き・削除しないようにする
+      cloudWatchRole: environment === 'prod',
       defaultCorsPreflightOptions: {
         allowOrigins: ['https://ougotti.github.io', 'http://localhost:3000'],
         allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -451,7 +454,9 @@ export class SimplenotebookStack extends cdk.Stack {
     });
 
     // IAM Role for GitHub Actions OIDC
-    const githubOidcRole = new iam.Role(this, 'GitHubActionsCdkDeployRole', {
+    // ロール名が固定(アカウントに 1 つ)なので本番スタックでだけ作る。開発用スタックと名前が衝突しないようにする。
+    // 実際の権限は docs/iam/ で管理している(このテンプレートのポリシーとは差分がある)
+    const githubOidcRole = environment !== 'prod' ? undefined : new iam.Role(this, 'GitHubActionsCdkDeployRole', {
       roleName: 'GitHubActionsCdkDeployRole',
       assumedBy: new iam.WebIdentityPrincipal(
         'arn:aws:iam::' + this.account + ':oidc-provider/token.actions.githubusercontent.com',
@@ -556,10 +561,12 @@ export class SimplenotebookStack extends cdk.Stack {
       exportName: `${id}-NotesBucket`,
     });
 
-    new cdk.CfnOutput(this, 'GitHubOidcRoleArn', {
-      value: githubOidcRole.roleArn,
-      description: 'GitHub Actions OIDC Role ARN',
-      exportName: `${id}-GitHubOidcRoleArn`,
-    });
+    if (githubOidcRole) {
+      new cdk.CfnOutput(this, 'GitHubOidcRoleArn', {
+        value: githubOidcRole.roleArn,
+        description: 'GitHub Actions OIDC Role ARN',
+        exportName: `${id}-GitHubOidcRoleArn`,
+      });
+    }
   }
 }

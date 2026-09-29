@@ -11,6 +11,86 @@
 | ロール | 用途 | 信頼ポリシー | 権限ポリシー |
 | --- | --- | --- | --- |
 | `GitHubActionsCdkDeployRole` | `.github/workflows/nextjs.yml` の `deploy-aws` ジョブが `cdk deploy` を実行するために引き受ける | [github-actions-cdk-deploy-role.trust.json](github-actions-cdk-deploy-role.trust.json) | インラインポリシー `CDKDeployPolicy` = [github-actions-cdk-deploy-role.policy.json](github-actions-cdk-deploy-role.policy.json) |
+| `cdk-snbook-cfn-exec-role-<アカウント>-ap-northeast-1` | simplenotebook 専用の CDK ブートストラップ(qualifier `snbook`)の CloudFormation 実行ロール。スタックのリソースを作成・更新・削除する | CDK ブートストラップが作成(CloudFormation のみ) | 管理ポリシー `simplenotebook-cfn-exec-policy` = [cdk-snbook-cfn-exec-policy.json](cdk-snbook-cfn-exec-policy.json) |
+
+## 専用の CDK ブートストラップ(B-21)
+
+### なぜ専用にするか
+
+既定のブートストラップ(qualifier `hnb659fds`、スタック `CDKToolkit-hnb659fds`)の実行ロール `cdk-hnb659fds-cfn-exec-role` は
+既定の AdministratorAccess のままで、**同じアカウント・リージョンのほかの CDK アプリ(Radiko 系・Zoom 系)と共有**している。
+これを絞るとほかのアプリのデプロイを壊すため、simplenotebook 専用のブートストラップ(qualifier `snbook`、スタック `CDKToolkit-snbook`)を作り、
+その実行ロールにだけ simplenotebook のリソースに絞った権限を付ける。スタックは `cdk/bin/simplenotebook.ts` で qualifier `snbook` を指定している。
+
+### 実行ロールの権限の考え方
+
+- ノートのバケット・認証テーブル(`simplenotebook-*`)、Lambda 関数・IAM ロール(`SimplenotebookStack*`、`GitHubActionsCdkDeployRole`)に絞る
+- IAM ロールへの管理ポリシーのアタッチは、Lambda と API Gateway のログ用の 2 つ(`AWSLambdaBasicExecutionRole`・`AmazonAPIGatewayPushToCloudWatchLogs`)だけ
+- API Gateway・Cognito はリソースを作る前に ARN を決められないため、リージョン単位で許可している
+- **Route 53 と ACM の権限は付けていない。** MCP のカスタムドメイン(`MCP_DOMAIN_NAME` など)を設定する前に、次の 2 つの Statement を追加する
+  (`<MCP のドメイン>` は実際の値に置き換える。ほかのレコードは変更できない)
+
+```json
+{
+  "Sid": "McpDomainRecordsOnly",
+  "Effect": "Allow",
+  "Action": ["route53:ChangeResourceRecordSets"],
+  "Resource": "arn:aws:route53:::hostedzone/<ホストゾーン ID>",
+  "Condition": {
+    "ForAllValues:StringLike": {
+      "route53:ChangeResourceRecordSetsNormalizedRecordNames": ["<MCP のドメイン>", "_*.<MCP のドメイン>"]
+    }
+  }
+},
+{
+  "Sid": "McpDomainReadAndCertificate",
+  "Effect": "Allow",
+  "Action": ["route53:GetHostedZone", "route53:ListResourceRecordSets", "route53:GetChange", "acm:RequestCertificate", "acm:DescribeCertificate", "acm:DeleteCertificate", "acm:AddTagsToCertificate", "acm:ListTagsForCertificate"],
+  "Resource": "*"
+}
+```
+
+### 検証のしかた
+
+本番のスタックを変更する前に、開発用スタックで「作成」「失敗時のロールバック」「削除」が権限不足なく通ることを確かめる。
+開発用スタックは CI ロールや API Gateway のアカウント設定を作らない(本番と衝突しないため)。
+
+```bash
+cd cdk
+ENVIRONMENT=dev STACK_NAME=SimplenotebookStack-dev npx cdk deploy SimplenotebookStack-dev --require-approval never
+ENVIRONMENT=dev STACK_NAME=SimplenotebookStack-dev npx cdk destroy SimplenotebookStack-dev --force
+```
+
+権限が足りないと `cdk-snbook-cfn-exec-role ... is not authorized to perform: <アクション>` で失敗するので、
+[cdk-snbook-cfn-exec-policy.json](cdk-snbook-cfn-exec-policy.json) に追加してから、下の手順でポリシーの新しいバージョンを作る。
+
+### 作成・更新手順
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+mkdir -p /tmp/iam-apply
+sed "s/__ACCOUNT_ID__/${ACCOUNT_ID}/g" docs/iam/cdk-snbook-cfn-exec-policy.json > /tmp/iam-apply/cfn-exec-policy.json
+
+# 初回: 管理ポリシーを作り、専用ブートストラップを作る
+aws iam create-policy --policy-name simplenotebook-cfn-exec-policy --policy-document file:///tmp/iam-apply/cfn-exec-policy.json
+(cd cdk && npx cdk bootstrap "aws://${ACCOUNT_ID}/ap-northeast-1" --qualifier snbook --toolkit-stack-name CDKToolkit-snbook \
+  --cloudformation-execution-policies "arn:aws:iam::${ACCOUNT_ID}:policy/simplenotebook-cfn-exec-policy")
+
+# 2 回目以降: ポリシーの新しいバージョンを既定にする(バージョンは最大 5 つまで。古いものは delete-policy-version で消す)
+aws iam create-policy-version --policy-arn "arn:aws:iam::${ACCOUNT_ID}:policy/simplenotebook-cfn-exec-policy" \
+  --policy-document file:///tmp/iam-apply/cfn-exec-policy.json --set-as-default
+```
+
+### 移行中の CI ロール
+
+切り替えのデプロイが通るまでは、CI ロールが新旧両方のブートストラップロールを引き受けられるようにしている
+([github-actions-cdk-deploy-role.policy.json](github-actions-cdk-deploy-role.policy.json))。
+本番のスタックの実行ロールが `cdk-snbook-cfn-exec-role` に切り替わったことを確認したら、`hnb659fds` の 3 ロールと SSM パラメータを外す。
+
+```bash
+# 本番スタックの実行ロールを確認する
+aws cloudformation describe-stacks --stack-name SimplenotebookStack --query 'Stacks[0].RoleARN' --output text
+```
 
 ## 設計の根拠
 
@@ -24,7 +104,7 @@ CloudTrail の `AssumeRoleWithWebIdentity`（直近90日 = lookup-events の保�
 
 ### 権限ポリシー: CDK ブートストラップロールへの `sts:AssumeRole` だけにする
 
-CDK v2 は ambient な認証情報で直接リソースを作らず、ブートストラップロール（`cdk-hnb659fds-*`）を引き受けて作業する。
+CDK v2 は ambient な認証情報で直接リソースを作らず、ブートストラップロール（B-21 以降は専用の `cdk-snbook-*`。移行中は旧 `cdk-hnb659fds-*` も）を引き受けて作業する。
 
 - CloudFormation 操作・`cfn-exec-role` への `iam:PassRole` → `deploy-role` が持っている
 - アセット（Lambda コードの zip）の staging バケットへのアップロード → `file-publishing-role` が持っている
