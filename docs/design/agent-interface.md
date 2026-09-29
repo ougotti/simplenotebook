@@ -209,7 +209,7 @@ OAuth のディスカバリー(RFC 8414/9728)は **ホスト直下** の `/.well
 - MCP の URL は CDK の出力 → `scripts/generate-config.js` 経由で渡し、直書きしない
 - フロントエンド(GitHub Pages)、Cognito のコールバック、S3 の CORS は変更しない
 
-> 補足: 同じホストゾーンにほかの用途のレコードがある場合、`cfn-exec-role` が既定の AdministratorAccess のままだと、スタックの誤りでそれらを書き換えてしまう恐れがある。これを防ぐには、bootstrap の `--cloudformation-execution-policies` で実行ロールの権限を絞る(`route53:ChangeResourceRecordSetsNormalizedRecordNames` 条件で、自スタックのレコード名に限定する)。ただし影響範囲が広いため、別の Issue として扱う。
+> 補足: 同じホストゾーンにほかの用途のレコードがある場合、`cfn-exec-role` が既定の AdministratorAccess のままだと、スタックの誤りでそれらを書き換えてしまう恐れがある。これを防ぐには、bootstrap の `--cloudformation-execution-policies` で実行ロールの権限を絞る(`route53:ChangeResourceRecordSetsNormalizedRecordNames` 条件で、自スタックのレコード名に限定する)。ただし影響範囲が広いため、別の Issue として扱う。→ B-21 で対応。実行ロールはほかの CDK アプリと共有だったため、simplenotebook 専用のブートストラップ(qualifier `snbook`)を作り、その実行ロールだけを絞った。Route 53 の権限はカスタムドメインを設定するときに、MCP のレコード名に限定して追加する(`docs/iam/README.md`)。
 
 401 のレスポンスには `WWW-Authenticate: Bearer resource_metadata="<URL>"` を付ける。これでクライアントはメタデータの場所を確実に見つけられる。
 

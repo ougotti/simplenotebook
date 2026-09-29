@@ -267,3 +267,15 @@ describe('ステージとルートの依存(#113)', () => {
     expect(stage.DependsOn).toEqual(expect.arrayContaining([routeId]));
   }, 120_000);
 });
+
+describe('本番だけが持つアカウント単位のリソース(B-21)', () => {
+  it('CI ロールと API Gateway のアカウント設定は本番スタックだけが作る(開発用スタックと衝突しない)', () => {
+    const prod = synth('prod');
+    const dev = synth('dev');
+    prod.resourcePropertiesCountIs('AWS::IAM::Role', { RoleName: 'GitHubActionsCdkDeployRole' }, 1);
+    prod.resourceCountIs('AWS::ApiGateway::Account', 1);
+    dev.resourcePropertiesCountIs('AWS::IAM::Role', { RoleName: 'GitHubActionsCdkDeployRole' }, 0);
+    dev.resourceCountIs('AWS::ApiGateway::Account', 0);
+    expect(Object.keys(dev.findOutputs('GitHubOidcRoleArn'))).toHaveLength(0);
+  }, 120_000);
+});
