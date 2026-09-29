@@ -362,10 +362,6 @@ export class SimplenotebookStack extends cdk.Stack {
       throttle: { rateLimit: 10, burstLimit: 20 },
       domainMapping: mcpDomain ? { domainName: mcpDomain } : undefined,
     });
-    // 認証なしで呼べる DCR は、登録を大量に作られないよう個別にさらに絞る
-    (mcpStage.node.defaultChild as apigwv2.CfnStage).addPropertyOverride('RouteSettings', {
-      'POST /oauth/register': { ThrottlingRateLimit: 1, ThrottlingBurstLimit: 5 },
-    });
 
     // REST API と同じ REQUEST 型(ペイロード 1.0・IAM ポリシー応答)で、同じオーソライザー関数を使う
     const mcpAuthorizer = new HttpLambdaAuthorizer('McpAuthorizer', authorizerFunction, {
@@ -425,7 +421,16 @@ export class SimplenotebookStack extends cdk.Stack {
       [apigwv2.HttpMethod.OPTIONS, '/oauth/approve'],
       [apigwv2.HttpMethod.OPTIONS, '/oauth/requests/{requestId}'],
     ] as const) {
-      mcpApi.addRoutes({ path, methods: [method], integration: oauthIntegration });
+      const routes = mcpApi.addRoutes({ path, methods: [method], integration: oauthIntegration });
+      if (method === apigwv2.HttpMethod.POST && path === '/oauth/register') {
+        // 認証なしで呼べる DCR は、登録を大量に作られないよう個別にさらに絞る。
+        // RouteSettings は存在するルートにしか設定できないため、ステージがこのルートに依存するようにして
+        // ルートの作成後に適用させる(依存がないと先に適用されてデプロイが失敗する。#113)
+        (mcpStage.node.defaultChild as apigwv2.CfnStage).addPropertyOverride('RouteSettings', {
+          'POST /oauth/register': { ThrottlingRateLimit: 1, ThrottlingBurstLimit: 5 },
+        });
+        mcpStage.node.addDependency(...routes);
+      }
     }
     // 同意画面からの呼び出しはログイン済みのユーザー(Cognito の ID トークン)に限る。判定は OAuth Lambda で行う
     mcpApi.addRoutes({
