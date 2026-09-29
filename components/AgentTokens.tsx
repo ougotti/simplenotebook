@@ -347,6 +347,12 @@ export default function AgentTokens() {
                         <span className={`text-xs rounded-full px-2 py-0.5 ${status.className}`} data-testid="token-status">
                           {status.label}
                         </span>
+                        {token.kind === 'oauth' && (
+                          // Claude.ai などのコネクタが OAuth で接続したもの。失効すると接続が解除される
+                          <span className="text-xs rounded-full px-2 py-0.5 bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" data-testid="token-kind-oauth">
+                            コネクタ
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                         権限: {token.scopes.map(scope => SCOPE_LABELS[scope] ?? scope).join('・')}

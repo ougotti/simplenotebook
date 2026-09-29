@@ -46,7 +46,7 @@ describe('認証用テーブル', () => {
         ],
         TimeToLiveSpecification: { AttributeName: 'ttl', Enabled: true },
         PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true },
-        GlobalSecondaryIndexes: [
+        GlobalSecondaryIndexes: Match.arrayWith([
           Match.objectLike({
             IndexName: 'GSI1',
             KeySchema: [
@@ -54,7 +54,7 @@ describe('認証用テーブル', () => {
               { AttributeName: 'GSI1SK', KeyType: 'RANGE' },
             ],
           }),
-        ],
+        ]),
       }),
     });
   });
@@ -141,7 +141,9 @@ describe('リモート MCP(HTTP API)', () => {
   });
 
   it('/mcp の POST・GET・DELETE だけがあり、すべてオーソライザー付き', () => {
-    const routes = Object.values(template.findResources('AWS::ApiGatewayV2::Route')).map((r) => r.Properties);
+    const routes = Object.values(template.findResources('AWS::ApiGatewayV2::Route'))
+      .map((r) => r.Properties)
+      .filter((r) => r.RouteKey.endsWith(' /mcp'));
     expect(routes.map((r) => r.RouteKey).sort()).toEqual(['DELETE /mcp', 'GET /mcp', 'POST /mcp']);
     expect(routes.every((r) => r.AuthorizationType === 'CUSTOM' && r.AuthorizerId)).toBe(true);
   });
@@ -199,5 +201,57 @@ describe('リモート MCP(HTTP API)', () => {
       HostedZoneId: 'Z0000000000TEST',
     });
     expect(withDomain.findOutputs('McpUrl').McpUrl.Value).toBe('https://mcp.notes.example.test/mcp');
+  });
+});
+
+describe('OAuth ファサード(B-20)', () => {
+  let template: Template;
+  beforeAll(() => {
+    template = synth('prod');
+  }, 120_000);
+
+  it('認証テーブルに GSI2(FAMILY#)を追加する', () => {
+    const table = Object.values(template.findResources('AWS::DynamoDB::Table'))[0];
+    expect(table.Properties.GlobalSecondaryIndexes.map((index: { IndexName: string }) => index.IndexName)).toEqual(['GSI1', 'GSI2']);
+  });
+
+  it('メタデータ・DCR・authorize・token は認証なし、同意画面の API は認証あり', () => {
+    const routes = Object.values(template.findResources('AWS::ApiGatewayV2::Route')).map((r) => r.Properties);
+    const auth = Object.fromEntries(routes.map((r) => [r.RouteKey, r.AuthorizationType ?? 'NONE']));
+    expect(auth).toMatchObject({
+      'GET /.well-known/oauth-protected-resource': 'NONE',
+      'GET /.well-known/oauth-protected-resource/mcp': 'NONE',
+      'GET /.well-known/oauth-authorization-server': 'NONE',
+      'POST /oauth/register': 'NONE',
+      'GET /oauth/authorize': 'NONE',
+      'POST /oauth/token': 'NONE',
+      'OPTIONS /oauth/approve': 'NONE',
+      'OPTIONS /oauth/requests/{requestId}': 'NONE',
+      'POST /oauth/approve': 'CUSTOM',
+      'GET /oauth/requests/{requestId}': 'CUSTOM',
+      'POST /mcp': 'CUSTOM',
+    });
+  });
+
+  it('DCR は個別にさらに絞る', () => {
+    template.hasResourceProperties('AWS::ApiGatewayV2::Stage', {
+      RouteSettings: { 'POST /oauth/register': { ThrottlingRateLimit: 1, ThrottlingBurstLimit: 5 } },
+    });
+  });
+
+  it('OAuth Lambda は Get/Put/Update/Delete と GSI2 の Query のみ(S3 なし)', () => {
+    const functions = template.findResources('AWS::Lambda::Function', {
+      Properties: { Environment: { Variables: Match.objectLike({ CONSENT_URL: Match.anyValue() }) } },
+    });
+    expect(Object.keys(functions)).toHaveLength(1);
+    const roleId = Object.values(functions)[0].Properties.Role['Fn::GetAtt'][0];
+    const statements = Object.values(template.findResources('AWS::IAM::Policy'))
+      .filter((policy) => policy.Properties.Roles.some((role: { Ref: string }) => role.Ref === roleId))
+      .flatMap((policy) => policy.Properties.PolicyDocument.Statement);
+    const actions = statements.flatMap((s: { Action: string | string[] }) => [s.Action].flat()).sort();
+    expect(actions).toEqual(['dynamodb:DeleteItem', 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:Query', 'dynamodb:UpdateItem']);
+    const query = statements.find((s: { Action: string }) => s.Action === 'dynamodb:Query');
+    expect(JSON.stringify(query.Resource)).toContain('/index/GSI2');
+    expect(JSON.stringify(query.Resource)).not.toContain('/index/GSI1');
   });
 });

@@ -58,6 +58,16 @@ export interface CreateAccessTokenResponse {
   tokenInfo: AccessToken;
 }
 
+/** OAuth の同意画面に表示する認可リクエスト */
+export interface OAuthAuthorizationRequest {
+  requestId: string;
+  clientName: string;
+  redirectUri: string;
+  redirectHost: string;
+  scopes: string[];
+  expiresAt: string;
+}
+
 /** API のエラー。message は従来どおり "API request failed: <status> ..." の形で、サーバーの説明は serverMessage に入る */
 export class ApiError extends Error {
   constructor(message: string, public status: number, public serverMessage?: string) {
@@ -251,6 +261,46 @@ class ApiClient {
     }
     await this.request(`/tokens/${encodeURIComponent(tokenId)}`, {
       method: 'DELETE',
+    });
+  }
+
+  /**
+   * OAuth ファサード(MCP と同じホスト)を、ログイン中のユーザーの ID トークンで呼ぶ。
+   * 同意画面からだけ使う。エラー時は error_description を serverMessage に入れる
+   */
+  private async oauthRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const mcpUrl = await this.getMcpUrl();
+    if (!mcpUrl) {
+      throw new ApiError('OAuth is not available', 0, 'この環境では外部アプリとの接続(OAuth)を利用できません。');
+    }
+    const response = await fetch(`${new URL(mcpUrl).origin}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.accessToken}`,
+        ...init.headers,
+      },
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new ApiError(
+        `API request failed: ${response.status} ${response.statusText}`,
+        response.status,
+        typeof body?.error_description === 'string' ? body.error_description : undefined
+      );
+    }
+    return body as T;
+  }
+
+  async getOAuthRequest(requestId: string): Promise<OAuthAuthorizationRequest> {
+    return this.oauthRequest<OAuthAuthorizationRequest>(`/oauth/requests/${encodeURIComponent(requestId)}`);
+  }
+
+  /** 同意または拒否する。戻り値のリダイレクト先(接続元のアプリ)へ遷移させる */
+  async decideOAuthRequest(requestId: string, approve: boolean, scopes?: string[]): Promise<{ redirectUrl: string }> {
+    return this.oauthRequest<{ redirectUrl: string }>('/oauth/approve', {
+      method: 'POST',
+      body: JSON.stringify({ requestId, approve, ...(scopes ? { scopes } : {}) }),
     });
   }
 

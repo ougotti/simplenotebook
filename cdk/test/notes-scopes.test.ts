@@ -47,3 +47,12 @@ describe('isRouteAllowed', () => {
     expect(isRouteAllowed('GET /notes', { authType: 'pat', scopes: 'notes:read:extra' })).toBe(false);
   });
 });
+
+describe('OAuth のトークン(B-20)', () => {
+  it('宛先は MCP だけなので、スコープがあっても REST API では使えない', () => {
+    const oauth = { authType: 'oauth', scopes: 'notes:read notes:write' };
+    for (const route of ['GET /notes', 'GET /notes/{noteId}', 'POST /notes', 'PUT /notes/{noteId}', 'GET /tags']) {
+      expect(isRouteAllowed(route, oauth)).toBe(false);
+    }
+  });
+});

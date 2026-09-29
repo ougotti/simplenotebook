@@ -19,6 +19,8 @@ export interface StoredToken {
   revokedAt?: string | null;
   /** 発行時に付けた名前。ノートの更新者(lastModifiedBy)の表示に使う */
   name?: string;
+  /** 'pat'(設定画面で発行)か 'oauth'(コネクタの OAuth で発行)。旧データにはないので未指定は 'pat' */
+  kind?: string;
 }
 
 /** 認証テーブルへのアクセス(テストで差し替えられるようにする) */
@@ -90,7 +92,7 @@ export function apiWildcardArn(methodArn: string): string {
   return `${apiArn}/${stage}/*`;
 }
 
-type AuthContext = { userId: string; authType: 'cognito' | 'pat'; scopes: string; tokenId?: string; tokenName?: string };
+type AuthContext = { userId: string; authType: 'cognito' | 'pat' | 'oauth'; scopes: string; tokenId?: string; tokenName?: string };
 
 function allow(methodArn: string, context: AuthContext): APIGatewayAuthorizerResult {
   return {
@@ -121,6 +123,7 @@ async function verifyPat(token: string, deps: AuthorizerDeps, now: Date): Promis
     !stored ||
     stored.revokedAt ||
     !(new Date(stored.expiresAt).getTime() > now.getTime()) ||
+    typeof stored.secretHash !== 'string' ||
     !secretMatches(parsed.secret, stored.secretHash)
   ) {
     throw new Error('Unauthorized');
@@ -135,7 +138,8 @@ async function verifyPat(token: string, deps: AuthorizerDeps, now: Date): Promis
 
   return {
     userId: stored.userId,
-    authType: 'pat',
+    // OAuth のトークンは MCP 専用。REST API 側で authType を見て拒否する
+    authType: stored.kind === 'oauth' ? 'oauth' : 'pat',
     tokenId: stored.tokenId,
     tokenName: typeof stored.name === 'string' ? stored.name : '',
     scopes: (Array.isArray(stored.scopes) ? stored.scopes : []).filter((scope) => PAT_ALLOWED_SCOPES.has(scope)).join(' '),

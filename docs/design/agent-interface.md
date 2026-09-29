@@ -184,6 +184,15 @@ sequenceDiagram
 - 発行するトークンのレコードは PAT と同じ形で `kind: "oauth"`・`clientId`・`familyId`(リフレッシュトークンの系列 ID。3.7 節)を持たせる。**オーソライザーは PAT と区別せずに検証できる**
 - CORS: 同意画面から呼ぶ `/oauth/approve` だけ、GitHub Pages のオリジンを許可する
 
+> 実装メモ(B-20):
+> - 同意画面に表示する内容を取得するため、`GET /oauth/requests/{requestId}`(Cognito JWT のみ)を追加した。`/oauth/approve` と同じく CORS は GitHub Pages(と localhost:3000)だけ
+> - 保護リソースのメタデータは `/.well-known/oauth-protected-resource` と、パス付きの `/.well-known/oauth-protected-resource/mcp` の両方で返す
+> - **401 の `WWW-Authenticate` は付けていない**。HTTP API は、オーソライザーが拒否したときの応答(ゲートウェイレスポンス)を変更できないため。MCP の仕様上、クライアントはヘッダーがなければ上の well-known の場所を探すので、ディスカバリーはそれで成り立つ。ヘッダーが必要になったら、`/mcp` の認証を MCP Lambda 側で行う形に変える
+> - OAuth のアクセストークンは `authType: "oauth"` としてオーソライザーの context に渡し、REST API(Notes Lambda)では拒否する(宛先は MCP だけ)
+> - 設定画面の一覧には、アクセストークンではなく「接続」(`CONN#<familyId>`。GSI1 に載せる)を表示する。失効すると系列のトークンをすべて失効させる。PAT の発行上限(20 個)には数えない
+> - DCR はステージのルート設定で 1 rps・バースト 5 に絞る
+> - 未ログインで同意画面を開いた場合は、ログイン前に同意画面の URL を sessionStorage に覚えておき、ログイン後(`/notes/new` に戻った後)に同意画面へ戻す。戻せるのは `/oauth/consent?req=<ID>` の形だけ(オープンリダイレクト防止)
+
 ### 3.6 エンドポイントの配置(ステージ名の問題)
 
 OAuth のディスカバリー(RFC 8414/9728)は **ホスト直下** の `/.well-known/...` を探す。今の REST API は URL に `/prod/` のようなステージ名が入るため、ホスト直下にファイルを置けない。
@@ -417,4 +426,4 @@ B-15 を先に独立させるのは、認証経路の差し替えを機能追加
 2. ~~`notes:delete` を PAT で許可するか、それともソフトデリート(`trash/` へ移動)に限定するか~~ → PAT には許可しない。`POST /tokens` で指定すると 400 にする(B-16)。OAuth で発行するトークンの扱いは B-20 で決める
 3. ~~カスタムドメインを取得するか~~ → 既存ゾーンのサブドメインを使う。値は context で渡す(3.6 節)
 4. ~~トークンストアを S3 のままにするか、DynamoDB を導入するか~~ → DynamoDB(3.7 節)
-5. OAuth のアクセストークンの有効期限(1 時間案)と、リフレッシュトークンの有効期限(30 日案)
+5. ~~OAuth のアクセストークンの有効期限(1 時間案)と、リフレッシュトークンの有効期限(30 日案)~~ → 案どおり 1 時間・30 日(B-20)。OAuth でも `notes:delete` は付与しない

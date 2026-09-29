@@ -53,12 +53,20 @@ function memoryStore(initial: TokenRecord[] = []) {
     },
     async revokeToken(userId, tokenId, now) {
       const record = records.get(tokenId);
-      if (!record || record.userId !== userId) return false;
+      if (!record || record.kind === 'oauth' || record.userId !== userId) return false;
       record.revokedAt ??= now.toISOString();
       return true;
     },
+    async revokeConnection(userId, familyId, now) {
+      const record = records.get(familyId);
+      if (!record || record.kind !== 'oauth' || record.userId !== userId) return false;
+      record.revokedAt ??= now.toISOString();
+      revokedFamilies.push(familyId);
+      return true;
+    },
   };
-  return { store, records };
+  const revokedFamilies: string[] = [];
+  return { store, records, revokedFamilies };
 }
 
 function record(overrides: Partial<TokenRecord> = {}): TokenRecord {
@@ -286,4 +294,41 @@ describe('PAT からの呼び出し', () => {
 it('認証情報がなければ 401', async () => {
   const { store } = memoryStore();
   expect((await makeHandler(store)(makeEvent('GET /tokens', {}))).statusCode).toBe(401);
+});
+
+describe('OAuth の接続(B-20)', () => {
+  const connection = (overrides: Partial<TokenRecord> = {}) =>
+    record({ tokenId: 'F000000000000000', kind: 'oauth', name: 'Claude', secretHash: undefined, ...overrides });
+
+  it('一覧に kind: oauth として表示される', async () => {
+    const { store } = memoryStore([record(), connection()]);
+    const { tokens } = parse((await makeHandler(store)(makeEvent('GET /tokens', COGNITO))).body);
+    expect(tokens.map((t: { tokenId: string; kind: string }) => [t.tokenId, t.kind])).toEqual(
+      expect.arrayContaining([['ABCDEFGHJKMNPQRS', 'pat'], ['F000000000000000', 'oauth']])
+    );
+  });
+
+  it('DELETE で接続(系列)を失効できる。他人の接続は 404', async () => {
+    const { store, records, revokedFamilies } = memoryStore([connection(), connection({ tokenId: 'G000000000000000', userId: 'someone-else' })]);
+    const handler = makeHandler(store);
+    expect((await handler(makeEvent('DELETE /tokens/{tokenId}', COGNITO, { tokenId: 'F000000000000000' }))).statusCode).toBe(204);
+    expect(records.get('F000000000000000')!.revokedAt).toBe(NOW.toISOString());
+    expect(revokedFamilies).toEqual(['F000000000000000']);
+    expect((await handler(makeEvent('DELETE /tokens/{tokenId}', COGNITO, { tokenId: 'G000000000000000' }))).statusCode).toBe(404);
+  });
+
+  it('PAT の発行上限に OAuth の接続は数えない', async () => {
+    const pats = Array.from({ length: MAX_ACTIVE_TOKENS - 1 }, (_, i) => record({ tokenId: `A${String(i).padStart(15, '0')}` }));
+    const connections = Array.from({ length: 5 }, (_, i) => connection({ tokenId: `F${String(i).padStart(15, '0')}` }));
+    const { store } = memoryStore([...pats, ...connections]);
+    const result = await makeHandler(store)(makeEvent('POST /tokens', COGNITO, { body: { name: 'x', scopes: ['notes:read'] } }));
+    expect(result.statusCode).toBe(201);
+  });
+
+  it('OAuth のトークンでも GET /tokens/self を呼べる', async () => {
+    const { store } = memoryStore([record({ tokenId: 'H000000000000000', kind: 'oauth', name: 'Claude' })]);
+    const result = await makeHandler(store)(makeEvent('GET /tokens/self', { userId: 'user-1', authType: 'oauth', tokenId: 'H000000000000000' }));
+    expect(result.statusCode).toBe(200);
+    expect(parse(result.body).token).toMatchObject({ tokenId: 'H000000000000000', kind: 'oauth' });
+  });
 });

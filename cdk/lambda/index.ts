@@ -89,6 +89,8 @@ const ROUTE_PERMISSIONS: Record<string, string> = {
 export function isRouteAllowed(route: string, authorizer: { authType?: unknown; scopes?: unknown } | null | undefined): boolean {
   const required = ROUTE_PERMISSIONS[route];
   if (!required) return true;
+  // OAuth で発行したトークンの宛先(resource)は MCP だけなので、REST API では使わせない
+  if (authorizer?.authType === 'oauth') return false;
   if (required === 'cognito') return authorizer?.authType === 'cognito';
   const scopes = typeof authorizer?.scopes === 'string' ? authorizer.scopes.split(' ') : [];
   return scopes.includes(required);

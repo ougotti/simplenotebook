@@ -1,15 +1,34 @@
 'use client';
 
 import { useAuth } from '../hooks/useAuth';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 import { apiClient } from '../lib/api';
 import SettingsModal from './SettingsModal';
+
+// Cognito のログイン後は /notes/new に戻る(コールバック URL は 1 つだけ)ため、
+// ログイン前にいたページのうち、戻す必要があるもの(OAuth の同意画面)をここに覚えておく
+const POST_LOGIN_REDIRECT_KEY = 'postLoginRedirect';
+// オープンリダイレクトにならないよう、戻せるのはアプリ内の同意画面だけ
+const RETURNABLE_PATH = /^\/oauth\/consent\?req=[0-9A-HJKMNP-TV-Z]{16}$/;
 
 function AuthGuardContent({ children }: { children: React.ReactNode }) {
   const { user, loading, signIn } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
+
+  function handleSignIn() {
+    const current = `${pathname}${window.location.search}`;
+    try {
+      if (RETURNABLE_PATH.test(current)) {
+        window.sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, current);
+      }
+    } catch {
+      // 保存できなければ、ログイン後にもう一度接続をやり直してもらう
+    }
+    signIn();
+  }
   const [isProcessingCallback, setIsProcessingCallback] = useState(false);
   const [isCheckingSettings, setIsCheckingSettings] = useState(false);
   const [showInitialSettings, setShowInitialSettings] = useState(false);
@@ -38,6 +57,21 @@ function AuthGuardContent({ children }: { children: React.ReactNode }) {
       return () => clearTimeout(timer);
     }
   }, [searchParams]);
+
+  // ログイン(コールバックの処理)が終わったら、覚えておいた同意画面に戻す
+  useEffect(() => {
+    if (!user || loading || isProcessingCallback) return;
+    let target: string | null = null;
+    try {
+      target = window.sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
+      window.sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+    } catch {
+      return;
+    }
+    if (target && RETURNABLE_PATH.test(target) && target !== `${pathname}${window.location.search}`) {
+      router.replace(target);
+    }
+  }, [user, loading, isProcessingCallback, pathname, router]);
 
   // Check user settings after authentication
   useEffect(() => {
@@ -123,7 +157,7 @@ function AuthGuardContent({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <button
-              onClick={signIn}
+              onClick={handleSignIn}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Sign in with Google
