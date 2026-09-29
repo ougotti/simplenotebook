@@ -68,6 +68,7 @@ ENVIRONMENT=dev STACK_NAME=SimplenotebookStack-dev npx cdk destroy Simplenoteboo
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+mkdir -p /tmp/iam-apply
 sed "s/__ACCOUNT_ID__/${ACCOUNT_ID}/g" docs/iam/cdk-snbook-cfn-exec-policy.json > /tmp/iam-apply/cfn-exec-policy.json
 
 # 初回: 管理ポリシーを作り、専用ブートストラップを作る
