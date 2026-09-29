@@ -255,3 +255,15 @@ describe('OAuth ファサード(B-20)', () => {
     expect(JSON.stringify(query.Resource)).not.toContain('/index/GSI1');
   });
 });
+
+describe('ステージとルートの依存(#113)', () => {
+  it('RouteSettings で参照する POST /oauth/register のルートを作ってからステージを更新する', () => {
+    const template = synth('prod');
+    const routes = template.findResources('AWS::ApiGatewayV2::Route', { Properties: { RouteKey: 'POST /oauth/register' } });
+    const [routeId] = Object.keys(routes);
+    expect(routeId).toBeDefined();
+    const stage = Object.values(template.findResources('AWS::ApiGatewayV2::Stage'))[0];
+    expect(Object.keys(stage.Properties.RouteSettings)).toEqual(['POST /oauth/register']);
+    expect(stage.DependsOn).toEqual(expect.arrayContaining([routeId]));
+  }, 120_000);
+});
