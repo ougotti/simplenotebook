@@ -112,7 +112,10 @@
         "ssm:GetParameter",
         "ssm:GetParameters"
       ],
-      "Resource": "arn:aws:ssm:ap-northeast-1:__ACCOUNT_ID__:parameter/cdk-bootstrap/snbook/*"
+      "Resource": [
+        "arn:aws:ssm:ap-northeast-1:__ACCOUNT_ID__:parameter/cdk-bootstrap/snbook/*",
+        "arn:aws:ssm:ap-northeast-1:__ACCOUNT_ID__:parameter/cdk-bootstrap/hnb659fds/version"
+      ]
     }
   ]
 }
