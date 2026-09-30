@@ -61,6 +61,11 @@ ENVIRONMENT=dev STACK_NAME=SimplenotebookStack-dev npx cdk deploy Simplenotebook
 ENVIRONMENT=dev STACK_NAME=SimplenotebookStack-dev npx cdk destroy SimplenotebookStack-dev --force
 ```
 
+注意: 開発用スタックは**新規作成**なので、既存スタックを更新するときにだけ起きることは検出できない。
+実際、本番スタックの実行ロールを切り替える最初の更新では、CloudFormation が以前のテンプレートのパラメータ
+(旧ブートストラップのバージョン `/cdk-bootstrap/hnb659fds/version`)を新しい実行ロールで解決しようとして失敗した(#119)。
+そのため実行ロールのポリシーには、このパラメータの読み取りも含めている。
+
 権限が足りないと `cdk-snbook-cfn-exec-role ... is not authorized to perform: <アクション>` で失敗するので、
 [cdk-snbook-cfn-exec-policy.json](cdk-snbook-cfn-exec-policy.json) に追加してから、下の手順でポリシーの新しいバージョンを作る。
 
