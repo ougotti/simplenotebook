@@ -64,7 +64,9 @@ ENVIRONMENT=dev STACK_NAME=SimplenotebookStack-dev npx cdk destroy Simplenoteboo
 注意: 開発用スタックは**新規作成**なので、既存スタックを更新するときにだけ起きることは検出できない。
 実際、本番スタックの実行ロールを切り替える最初の更新では、CloudFormation が以前のテンプレートのパラメータ
 (旧ブートストラップのバージョン `/cdk-bootstrap/hnb659fds/version`)を新しい実行ロールで解決しようとして失敗した(#119)。
-そのため実行ロールのポリシーには、このパラメータの読み取りも含めている。
+切り替えの間だけ、実行ロールのポリシーにこのパラメータの読み取りを一時的に追加して対応した。
+切り替え後は以前のテンプレートも `snbook` を参照するので、この読み取りは外している(#121)。
+将来 qualifier を変えるときも、同じように旧 qualifier のバージョンの読み取りを一時的に追加する必要がある。
 
 権限が足りないと `cdk-snbook-cfn-exec-role ... is not authorized to perform: <アクション>` で失敗するので、
 [cdk-snbook-cfn-exec-policy.json](cdk-snbook-cfn-exec-policy.json) に追加してから、下の手順でポリシーの新しいバージョンを作る。
@@ -86,14 +88,15 @@ aws iam create-policy-version --policy-arn "arn:aws:iam::${ACCOUNT_ID}:policy/si
   --policy-document file:///tmp/iam-apply/cfn-exec-policy.json --set-as-default
 ```
 
-### 移行中の CI ロール
+### CI ロールと移行の経緯
 
-切り替えのデプロイが通るまでは、CI ロールが新旧両方のブートストラップロールを引き受けられるようにしている
+切り替えのデプロイが通るまでは、CI ロールが新旧両方のブートストラップロールを引き受けられるようにしていた。
+本番のスタックの実行ロールが `cdk-snbook-cfn-exec-role` に切り替わったことを確認したうえで、
+`hnb659fds` の 3 ロールと SSM パラメータを外した(#121)。現在の CI ロールは `cdk-snbook-*` だけを引き受ける
 ([github-actions-cdk-deploy-role.policy.json](github-actions-cdk-deploy-role.policy.json))。
-本番のスタックの実行ロールが `cdk-snbook-cfn-exec-role` に切り替わったことを確認したら、`hnb659fds` の 3 ロールと SSM パラメータを外す。
 
 ```bash
-# 本番スタックの実行ロールを確認する
+# 本番スタックの実行ロールを確認する(cdk-snbook-cfn-exec-role-... であること)
 aws cloudformation describe-stacks --stack-name SimplenotebookStack --query 'Stacks[0].RoleARN' --output text
 ```
 
@@ -109,7 +112,7 @@ CloudTrail の `AssumeRoleWithWebIdentity`（直近90日 = lookup-events の保�
 
 ### 権限ポリシー: CDK ブートストラップロールへの `sts:AssumeRole` だけにする
 
-CDK v2 は ambient な認証情報で直接リソースを作らず、ブートストラップロール（B-21 以降は専用の `cdk-snbook-*`。移行中は旧 `cdk-hnb659fds-*` も）を引き受けて作業する。
+CDK v2 は ambient な認証情報で直接リソースを作らず、ブートストラップロール（B-21 以降は専用の `cdk-snbook-*`）を引き受けて作業する。
 
 - CloudFormation 操作・`cfn-exec-role` への `iam:PassRole` → `deploy-role` が持っている
 - アセット（Lambda コードの zip）の staging バケットへのアップロード → `file-publishing-role` が持っている
@@ -131,7 +134,7 @@ CloudFormation が `cfn-exec-role` で解決するので、CIロールには `se
 
 - `lookup-role` は現時点では使われていない（`fromLookup` 系を使っていないため CloudTrail にも出ない）が、
   context lookup を追加したときに即失敗しないよう、読み取り専用の同ロールだけは引き受け先に含めてある。
-- `ssm:GetParameter` はブートストラップバージョン（`/cdk-bootstrap/hnb659fds/version`）1件のみ。
+- `ssm:GetParameter` はブートストラップバージョン（`/cdk-bootstrap/snbook/version`）1件のみ。
   現状は CDK が `deploy-role` 経由で読むため実測には出ないが、ambient にフォールバックする経路への保険として最小スコープで残す。
 - `DockerImageAsset` / `ContainerImage.fromAsset` は使っていない（Lambda は `lambda.Code.fromAsset` の zip アセットのみ）ので、
   `image-publishing-role` への `sts:AssumeRole` は不要。
