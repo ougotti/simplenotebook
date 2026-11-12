@@ -53,7 +53,10 @@ export class SimplenotebookStack extends cdk.Stack {
     // Cognito User Pool
     const userPool = new cognito.UserPool(this, 'UserPool', {
       userPoolName: `simplenotebook-users-${environment}`,
-      selfSignUpEnabled: true,
+      // ログインは Google(フェデレーション)だけを使う。ユーザーは初回ログイン時に作られ、
+      // それには自己サインアップの許可は要らない。有効のままだと、公開の config.json にあるクライアント ID で
+      // 誰でも SignUp / SRP 認証をして API(S3 への保存)を使えてしまう
+      selfSignUpEnabled: false,
       signInAliases: {
         email: true,
       },
