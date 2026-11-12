@@ -87,7 +87,9 @@ function ConsentContent() {
         </p>
         <p className="mt-3 text-sm">
           <a
-            href={window.location.href}
+            // window を参照しない相対リンク(現在のパスに同じ req を付けて開く)。静的エクスポートの
+            // 事前レンダリングでも安全に書けるようにしている
+            href={`?req=${encodeURIComponent(requestId)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 dark:text-blue-400 underline"

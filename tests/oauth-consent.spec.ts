@@ -112,6 +112,8 @@ test.describe('OAuth 同意画面 (B-20)', () => {
     await expect(frame.getByTestId('consent-framed')).toBeVisible()
     await expect(frame.getByRole('button', { name: '許可する' })).toHaveCount(0)
     await expect(frame.getByTestId('consent')).toHaveCount(0)
+    // 「新しいタブで開く」は window を使わない相対リンクで、同じ req を引き継ぐ
+    await expect(frame.getByRole('link', { name: '新しいタブで開く' })).toHaveAttribute('href', `?req=${REQUEST_ID}`)
     expect(requestFetches).toEqual([])
   })
 
