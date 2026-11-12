@@ -87,6 +87,34 @@ test.describe('OAuth 同意画面 (B-20)', () => {
     await expect(page.getByTestId('consent-error')).toContainText('expired or has already been used');
   });
 
+  test('他のページに埋め込まれたときは同意の UI を出さず、リクエストも取得しない(クリックジャッキング対策)', async ({ page, baseURL }) => {
+    await mockOAuth(page)
+    const requestFetches: string[] = []
+    page.on('request', request => {
+      if (request.url().includes('/oauth/requests/')) requestFetches.push(request.url())
+    })
+    // 攻撃者のページが、同意画面を透明な iframe で重ねる状況を再現する。
+    // 判定(window.self !== window.top)は親ページのオリジンに依存しない。クロスオリジンの親は、
+    // Chrome の Private Network Access が「公開ページからローカルへの埋め込み」として遮断するため
+    // ここでは再現できない(本番は GitHub Pages どうしなので該当しない)。実ページに iframe を挿入する
+    const consentUrl = new URL(appPath(`/oauth/consent?req=${REQUEST_ID}`), baseURL).toString()
+    await page.goto(appPath('/notes/new'))
+    await expect(page.locator('h1')).toContainText('SimpleNotebook')
+    await page.evaluate(url => {
+      const iframe = document.createElement('iframe')
+      iframe.id = 'victim'
+      iframe.src = url
+      iframe.style.cssText = 'opacity:0.01;width:600px;height:500px'
+      document.body.appendChild(iframe)
+    }, consentUrl)
+
+    const frame = page.frameLocator('#victim')
+    await expect(frame.getByTestId('consent-framed')).toBeVisible()
+    await expect(frame.getByRole('button', { name: '許可する' })).toHaveCount(0)
+    await expect(frame.getByTestId('consent')).toHaveCount(0)
+    expect(requestFetches).toEqual([])
+  })
+
   test('MCP が提供されていない環境(開発モード)では利用できない旨を表示する', async ({ page }) => {
     await page.goto(appPath(`/oauth/consent?req=${REQUEST_ID}`));
     await expect(page.getByTestId('consent-error')).toContainText('外部アプリとの接続(OAuth)を利用できません');

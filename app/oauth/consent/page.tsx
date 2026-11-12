@@ -26,8 +26,23 @@ function ConsentContent() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
+  // 別ページに埋め込まれているか(null は判定前)。判定が済むまで同意の UI は出さない
+  const [framed, setFramed] = useState<boolean | null>(null)
 
   useEffect(() => {
+    // クリックジャッキング対策。悪意あるページが透明な iframe でこの画面を重ね、
+    // 「許可する」を押させるのを防ぐ。GitHub Pages は X-Frame-Options / frame-ancestors を
+    // 返せないため、画面側で判定する。window.top との比較はクロスオリジンでも例外にならないが、
+    // 万一例外になった場合も埋め込みとして扱う
+    try {
+      setFramed(window.self !== window.top)
+    } catch {
+      setFramed(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (framed !== false) return
     if (!requestId) {
       setError('接続リクエストが指定されていません。接続元のアプリからもう一度やり直してください。')
       setLoading(false)
@@ -40,7 +55,7 @@ function ConsentContent() {
       })
       .catch(err => setError(errorMessage(err, '接続リクエストを読み込めませんでした。期限切れの可能性があります。接続元のアプリからもう一度やり直してください。')))
       .finally(() => setLoading(false))
-  }, [requestId])
+  }, [requestId, framed])
 
   function toggleScope(scope: string) {
     setScopes(prev => (prev.includes(scope) ? prev.filter(s => s !== scope) : [...prev, scope]))
@@ -62,6 +77,26 @@ function ConsentContent() {
       setError(errorMessage(err, '処理に失敗しました。接続元のアプリからもう一度やり直してください。'))
       setSubmitting(false)
     }
+  }
+
+  if (framed === true) {
+    return (
+      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-md p-6" role="alert" data-testid="consent-framed">
+        <p className="text-sm text-amber-900 dark:text-amber-100">
+          この画面は他のページの中では表示できません。安全のため、新しいタブで開いてから操作してください。
+        </p>
+        <p className="mt-3 text-sm">
+          <a
+            href={window.location.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 dark:text-blue-400 underline"
+          >
+            新しいタブで開く
+          </a>
+        </p>
+      </div>
+    )
   }
 
   if (loading) {
