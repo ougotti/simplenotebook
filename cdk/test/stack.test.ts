@@ -279,3 +279,20 @@ describe('本番だけが持つアカウント単位のリソース(B-21)', () =
     expect(Object.keys(dev.findOutputs('GitHubOidcRoleArn'))).toHaveLength(0);
   }, 120_000);
 });
+
+describe('Cognito ユーザープール(#124)', () => {
+  // ログインは Google(フェデレーション)だけ。自己サインアップを許すと、公開の config.json にある
+  // クライアント ID で誰でも Cognito ユーザーを作り、API(S3 への保存)を使えてしまう
+  it.each(['prod', 'dev'])('%s は管理者だけがユーザーを作れる(自己サインアップ無効)', (environment) => {
+    const template = synth(environment);
+    template.hasResourceProperties('AWS::Cognito::UserPool', {
+      AdminCreateUserConfig: { AllowAdminCreateUserOnly: true },
+    });
+  }, 120_000);
+
+  it('アプリクライアントのログインは Google だけ(自己サインアップの無効化でフェデレーションを変えない)', () => {
+    synth('prod').hasResourceProperties('AWS::Cognito::UserPoolClient', {
+      SupportedIdentityProviders: ['Google'],
+    });
+  }, 120_000);
+});
